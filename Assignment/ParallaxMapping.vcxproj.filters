@@ -1,0 +1,162 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="Device.cpp" />
+    <ClCompile Include="Main.cpp" />
+    <ClCompile Include="Shader.cpp" />
+    <ClCompile Include="Input.cpp">
+      <Filter>Helpers</Filter>
+    </ClCompile>
+    <ClCompile Include="Timer.cpp">
+      <Filter>Helpers</Filter>
+    </ClCompile>
+    <ClCompile Include="Import\Common\CFatalException.cpp">
+      <Filter>Import\Common</Filter>
+    </ClCompile>
+    <ClCompile Include="Import\Common\MSDefines.cpp">
+      <Filter>Import\Common</Filter>
+    </ClCompile>
+    <ClCompile Include="Import\Common\Utility.cpp">
+      <Filter>Import\Common</Filter>
+    </ClCompile>
+    <ClCompile Include="Import\Math\BaseMath.cpp">
+      <Filter>Import\Math</Filter>
+    </ClCompile>
+    <ClCompile Include="Import\Math\CMatrix2x2.cpp">
+      <Filter>Import\Math</Filter>
+    </ClCompile>
+    <ClCompile Include="Import\Math\CMatrix3x3.cpp">
+      <Filter>Import\Math</Filter>
+    </ClCompile>
+    <ClCompile Include="Import\Math\CMatrix4x4.cpp">
+      <Filter>Import\Math</Filter>
+    </ClCompile>
+    <ClCompile Include="Import\Math\CQuaternion.cpp">
+      <Filter>Import\Math</Filter>
+    </ClCompile>
+    <ClCompile Include="Import\Math\CQuatTransform.cpp">
+      <Filter>Import\Math</Filter>
+    </ClCompile>
+    <ClCompile Include="Import\Math\CVector2.cpp">
+      <Filter>Import\Math</Filter>
+    </ClCompile>
+    <ClCompile Include="Import\Math\CVector3.cpp">
+      <Filter>Import\Math</Filter>
+    </ClCompile>
+    <ClCompile Include="Import\Math\CVector4.cpp">
+      <Filter>Import\Math</Filter>
+    </ClCompile>
+    <ClCompile Include="Import\Math\MathIO.cpp">
+      <Filter>Import\Math</Filter>
+    </ClCompile>
+    <ClCompile Include="Import\CImportXFile.cpp">
+      <Filter>Import</Filter>
+    </ClCompile>
+    <ClCompile Include="Camera.cpp" />
+    <ClCompile Include="Model.cpp" />
+    <ClCompile Include="ParallaxMapping.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Device.h" />
+    <ClInclude Include="Scene.h" />
+    <ClInclude Include="Shader.h" />
+    <ClInclude Include="Resource.h">
+      <Filter>Resources</Filter>
+    </ClInclude>
+    <ClInclude Include="Input.h">
+      <Filter>Helpers</Filter>
+    </ClInclude>
+    <ClInclude Include="Timer.h">
+      <Filter>Helpers</Filter>
+    </ClInclude>
+    <ClInclude Include="Import\Common\CFatalException.h">
+      <Filter>Import\Common</Filter>
+    </ClInclude>
+    <ClInclude Include="Import\Common\Error.h">
+      <Filter>Import\Common</Filter>
+    </ClInclude>
+    <ClInclude Include="Import\Common\GenDefines.h">
+      <Filter>Import\Common</Filter>
+    </ClInclude>
+    <ClInclude Include="Import\Common\MSDefines.h">
+      <Filter>Import\Common</Filter>
+    </ClInclude>
+    <ClInclude Include="Import\Common\Utility.h">
+      <Filter>Import\Common</Filter>
+    </ClInclude>
+    <ClInclude Include="Import\Math\BaseMath.h">
+      <Filter>Import\Math</Filter>
+    </ClInclude>
+    <ClInclude Include="Import\Math\CMatrix2x2.h">
+      <Filter>Import\Math</Filter>
+    </ClInclude>
+    <ClInclude Include="Import\Math\CMatrix3x3.h">
+      <Filter>Import\Math</Filter>
+    </ClInclude>
+    <ClInclude Include="Import\Math\CMatrix4x4.h">
+      <Filter>Import\Math</Filter>
+    </ClInclude>
+    <ClInclude Include="Import\Math\CQuaternion.h">
+      <Filter>Import\Math</Filter>
+    </ClInclude>
+    <ClInclude Include="Import\Math\CQuatTransform.h">
+      <Filter>Import\Math</Filter>
+    </ClInclude>
+    <ClInclude Include="Import\Math\CVector2.h">
+      <Filter>Import\Math</Filter>
+    </ClInclude>
+    <ClInclude Include="Import\Math\CVector3.h">
+      <Filter>Import\Math</Filter>
+    </ClInclude>
+    <ClInclude Include="Import\Math\CVector4.h">
+      <Filter>Import\Math</Filter>
+    </ClInclude>
+    <ClInclude Include="Import\Math\MathDX.h">
+      <Filter>Import\Math</Filter>
+    </ClInclude>
+    <ClInclude Include="Import\Math\MathIO.h">
+      <Filter>Import\Math</Filter>
+    </ClInclude>
+    <ClInclude Include="Import\CImportXFile.h">
+      <Filter>Import</Filter>
+    </ClInclude>
+    <ClInclude Include="Import\Colour.h">
+      <Filter>Import</Filter>
+    </ClInclude>
+    <ClInclude Include="Import\MeshData.h">
+      <Filter>Import</Filter>
+    </ClInclude>
+    <ClInclude Include="Camera.h" />
+    <ClInclude Include="Model.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="Resources">
+      <UniqueIdentifier>{4dbd9713-bddb-4501-9407-9afe10a44118}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Helpers">
+      <UniqueIdentifier>{54bac288-25b3-4e2c-b00e-c31527dacd2e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Import">
+      <UniqueIdentifier>{b096479d-2f16-49a6-8c35-3d806391630b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Import\Math">
+      <UniqueIdentifier>{462001d5-2383-49c9-8815-3603dfd4e439}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Import\Common">
+      <UniqueIdentifier>{ccf370db-689c-41e2-9eda-3abdc508c784}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="ParallaxMapping.fx" />
+  </ItemGroup>
+  <ItemGroup>
+    <Manifest Include="ParallaxMapping.manifest">
+      <Filter>Resources</Filter>
+    </Manifest>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="ParallaxMapping.rc">
+      <Filter>Resources</Filter>
+    </ResourceCompile>
+  </ItemGroup>
+</Project>
