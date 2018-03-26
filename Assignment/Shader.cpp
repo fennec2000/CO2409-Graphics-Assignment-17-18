@@ -21,7 +21,7 @@ ID3D10Effect* Effect = NULL;
 
 // Variable for each technique used from the .fx file (found at the end of the .fx file)
 ID3D10EffectTechnique* ParallaxMappingTechnique   = NULL;
-ID3D10EffectTechnique* ParallaxMappingWobbleTechnique = NULL;
+ID3D10EffectTechnique* ParallaxMappingTechniqueSphere = NULL;
 ID3D10EffectTechnique* AdditiveTintTexTechnique = NULL;
 
 // Matrices - variables used to send values from C++ to shader (fx file) variables
@@ -39,6 +39,7 @@ ID3D10EffectVectorVariable* Light1PosVar     = NULL;
 ID3D10EffectVectorVariable* Light1ColourVar  = NULL;
 ID3D10EffectVectorVariable* Light2PosVar     = NULL;
 ID3D10EffectVectorVariable* Light2ColourVar  = NULL;
+ID3D10EffectVectorVariable* SphereColourVar  = NULL;
 ID3D10EffectVectorVariable* AmbientColourVar = NULL;
 ID3D10EffectVectorVariable* CameraPosVar     = NULL; // Camera position used for specular light
 ID3D10EffectScalarVariable* SpecularPowerVar = NULL;
@@ -51,7 +52,8 @@ ID3D10EffectShaderResourceVariable* NormalMapVar  = NULL;
 ID3D10EffectScalarVariable* ParallaxDepthVar = NULL; // To set the depth of the parallax mapping effect
 ID3D10EffectVectorVariable* TintColourVar    = NULL; // For tinting the light models
 
-// Wobble
+// Effects
+ID3D10EffectScalarVariable* MoverVar         = NULL;
 ID3D10EffectScalarVariable* WiggleVar        = NULL;
 
 
@@ -89,7 +91,7 @@ bool InitShaders()
 
 	// Now we can select techniques from the compiled effect file
 	ParallaxMappingTechnique = Effect->GetTechniqueByName("ParallaxMapping");
-	ParallaxMappingWobbleTechnique = Effect->GetTechniqueByName("ParallaxMappingWobble");
+	ParallaxMappingTechniqueSphere = Effect->GetTechniqueByName("ParallaxMappingSphere");
 	AdditiveTintTexTechnique = Effect->GetTechniqueByName("AdditiveTexTint");
 
 	// Create variables to allow us to access global variables in the shaders from C++
@@ -104,6 +106,7 @@ bool InitShaders()
 	Light1ColourVar  = Effect->GetVariableByName("Light1Colour"   )->AsVector();
 	Light2PosVar     = Effect->GetVariableByName("Light2Pos"      )->AsVector();
 	Light2ColourVar  = Effect->GetVariableByName("Light2Colour"   )->AsVector();
+	SphereColourVar  = Effect->GetVariableByName("SphereColour"   )->AsVector();
 	AmbientColourVar = Effect->GetVariableByName("AmbientColour"  )->AsVector();
 	CameraPosVar     = Effect->GetVariableByName("CameraPos"      )->AsVector();
 	SpecularPowerVar = Effect->GetVariableByName("SpecularPower"  )->AsScalar();
@@ -117,7 +120,8 @@ bool InitShaders()
 	DiffuseMapVar    = Effect->GetVariableByName("DiffuseMap"     )->AsShaderResource();
 	NormalMapVar     = Effect->GetVariableByName("NormalMap"      )->AsShaderResource();
 
-	// Wobble
+	// Effects
+	MoverVar         = Effect->GetVariableByName("Mover"          )->AsScalar();
 	WiggleVar        = Effect->GetVariableByName("Wiggle"         )->AsScalar();
 
 	return true;

@@ -215,6 +215,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="Camera.h" />
+    <ClInclude Include="Colour\ColourConversions.h" />
     <ClInclude Include="Device.h" />
     <ClInclude Include="Import\CImportXFile.h" />
     <ClInclude Include="Import\Colour.h" />
@@ -244,6 +245,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Camera.cpp" />
+    <ClCompile Include="Colour\ColourConversions.cpp" />
     <ClCompile Include="Import\CImportXFile.cpp" />
     <ClCompile Include="Import\Common\CFatalException.cpp" />
     <ClCompile Include="Import\Common\MSDefines.cpp" />

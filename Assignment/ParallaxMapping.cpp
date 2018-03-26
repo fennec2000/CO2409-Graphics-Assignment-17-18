@@ -8,16 +8,22 @@
 #include "Camera.h"
 #include "Shader.h"
 #include "Input.h"  // Input functions - not DirectX
+#include "Colour\ColourConversions.h"  // my hsl and rbs conversions
 
 
 //--------------------------------------------------------------------------------------
 // Global Scene Variables
 //--------------------------------------------------------------------------------------
 
+// Enums
+enum LightState { R, G, B };        // current target for the light to become
+
 // Constants controlling speed of movement/rotation. [Note for Games Dev 1 students: measured in units per second because we're using frame time]
 const float kRotationSpeed = 2.0f;  // 4 radians per second for rotation
 const float kMovementSpeed = 50.0f; // 10 units per second for movement (what a unit of length is depends on 3D model - i.e. an artist decision usually)
 const float kScaleSpeed    = 2.0f;  // 2x or 1/2x scaling each second - this is used as a multiplier/divider
+float Pulse;                        // pulsating light value
+float Mover;                        // mover value
 float Wiggle;                       // wiggle value
 
 //-------------------------------------
@@ -48,9 +54,17 @@ bool UseParallax    = true;  // Toggle for parallax
 
 // Light data still stored manually, a light class would be helpful - but it's an assignment task!
 D3DXVECTOR3 AmbientColour = D3DXVECTOR3( 0.2f, 0.2f, 0.3f );
-D3DXVECTOR3 Light1Colour  = D3DXVECTOR3( 0.8f, 0.8f, 1.0f ) * 8;
+D3DXVECTOR3 Light1Colour  = D3DXVECTOR3( 0.8f, 0.8f, 1.0f );
 D3DXVECTOR3 Light2Colour  = D3DXVECTOR3( 1.0f, 0.8f, 0.2f ) * 30;
+D3DXVECTOR3 Light2ColourDefault = Light2Colour;
+D3DXVECTOR3 SphereColour  = D3DXVECTOR3(1.0f, 0.41f, 0.7f) * 0.3f;
 float SpecularPower = 256.0f;
+
+// Light 1 colour to HSL
+// used to rotate colours
+float HSL[3];
+float ColourRotateRate = 100.0f;
+float Light1Power = 20.0f;
 
 // Display models where the lights are. One of the lights will follow an orbit
 Model* Light1;
@@ -99,12 +113,12 @@ bool InitScene()
 	// process is done in the import code, but the detail is beyond the scope of this lab exercise
 	//
 	bool success = true;
-	if (!Cube->  Load( "Cube.x",   ParallaxMappingTechnique,  true ))  success = false;
-	if (!Teapot->Load( "Teapot.x", ParallaxMappingTechnique,  true ))  success = false;
-	if (!Sphere->Load( "Sphere.x", ParallaxMappingTechnique,  true ))  success = false;
-	if (!Floor-> Load( "Hills.x",  ParallaxMappingTechnique,  true ))  success = false;
-	if (!Light1->Load( "Light.x",  AdditiveTintTexTechnique        ))  success = false;
-	if (!Light2->Load( "Light.x",  AdditiveTintTexTechnique        ))  success = false;
+	if (!Cube->  Load( "Cube.x",   ParallaxMappingTechnique,        true ))  success = false;
+	if (!Teapot->Load( "Teapot.x", ParallaxMappingTechnique,        true ))  success = false;
+	if (!Sphere->Load( "Sphere.x", ParallaxMappingTechniqueSphere,  true ))  success = false;
+	if (!Floor-> Load( "Hills.x",  ParallaxMappingTechnique,        true ))  success = false;
+	if (!Light1->Load( "Light.x",  AdditiveTintTexTechnique              ))  success = false;
+	if (!Light2->Load( "Light.x",  AdditiveTintTexTechnique              ))  success = false;
 	if (!success)
 	{
 		MessageBox(NULL, L"Error loading model files. Ensure your files are correctly named and in the same folder as this executable.", L"Error", MB_OK);
@@ -119,6 +133,11 @@ bool InitScene()
 	Light1->SetScale( 5.0f );
 	Light2->SetPosition( D3DXVECTOR3( 20, 40, -20) );
 	Light2->SetScale( 12.0f );
+
+	// Setup Light1's colour
+	// Light 1 colour to HSL
+	// used to rotate colours
+	RGBToHSL(Light1Colour.x, Light1Colour.y, Light1Colour.z, HSL[0], HSL[1], HSL[2]);
 
 
 	//---------------------------
@@ -183,15 +202,27 @@ void UpdateScene( float frameTime )
 {
 	// Control camera position and update its matrices (view matrix, projection matrix) each frame
 	// Don't be deceived into thinking that this is a new method to control models - the same code we used previously is in the camera class
-	MainCamera->Control( frameTime, Key_Up, Key_Down, Key_Left, Key_Right, Key_W, Key_S, Key_A, Key_D );
+	MainCamera->Control(frameTime, Key_W, Key_S, Key_A, Key_D, Key_Q, Key_E, Key_Z, Key_X);
 	
 	// Control cube position and update its world matrix each frame
-	Cube->Control( frameTime, Key_I, Key_K, Key_J, Key_L, Key_U, Key_O, Key_Period, Key_Comma );
+	Cube->Control(frameTime, Key_I, Key_K, Key_J, Key_L, Key_U, Key_O, Key_Comma, Key_Period);
 
 	// Update the orbiting light - a bit of a cheat with the static variable [ask the tutor if you want to know what this is]
 	static float Rotate = 0.0f;
 	Light1->SetPosition( Cube->Position() + D3DXVECTOR3(cos(Rotate)*LightOrbitRadius, 0, sin(Rotate)*LightOrbitRadius) );
 	Rotate -= LightOrbitSpeed * frameTime;
+
+	// lighting
+	Pulse += frameTime;
+	Light2Colour = Light2ColourDefault * abs(sin(Pulse));
+	
+	HSL[0] += frameTime * ColourRotateRate;
+	HSLToRGB(HSL[0], HSL[1], HSL[2], Light1Colour.x, Light1Colour.y, Light1Colour.z);
+	Light1Colour *= Light1Power;
+
+	// Update mover
+	Mover += 0.1f * frameTime;
+	MoverVar->SetFloat(Mover);
 
 	// Update wiggle
 	Wiggle += 6 * frameTime;
@@ -232,6 +263,7 @@ void RenderScene()
 	Light1ColourVar-> SetRawValue( Light1Colour, 0, 12 );
 	Light2PosVar->    SetRawValue( Light2->Position(), 0, 12 );
 	Light2ColourVar-> SetRawValue( Light2Colour, 0, 12 );
+	SphereColourVar-> SetRawValue( SphereColour, 0, 12);
 	AmbientColourVar->SetRawValue( AmbientColour, 0, 12 );
 	CameraPosVar->    SetRawValue( MainCamera->Position(), 0, 12 );
 	SpecularPowerVar->SetFloat( SpecularPower );
@@ -261,7 +293,8 @@ void RenderScene()
 	WorldMatrixVar->SetMatrix((float*)Sphere->WorldMatrix());
 	DiffuseMapVar->SetResource(SphereDiffuseMap);
 	NormalMapVar->SetResource(SphereNormalMap);
-	Sphere->Render(ParallaxMappingWobbleTechnique);
+	TintColourVar->SetRawValue(SphereColour, 0, 12);
+	Sphere->Render(ParallaxMappingTechniqueSphere);
 
 	WorldMatrixVar->SetMatrix( (float*)Floor->WorldMatrix() );
 	DiffuseMapVar->SetResource( FloorDiffuseMap );
@@ -275,7 +308,7 @@ void RenderScene()
 
 	WorldMatrixVar->SetMatrix( (float*)Light2->WorldMatrix() );
 	DiffuseMapVar->SetResource( LightDiffuseMap );
-	TintColourVar->SetRawValue( Light2Colour, 0, 12 );
+	TintColourVar->SetRawValue(Light2Colour, 0, 12 );
 	Light2->Render( AdditiveTintTexTechnique );
 
 
