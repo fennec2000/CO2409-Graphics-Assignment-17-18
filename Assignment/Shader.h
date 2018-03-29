@@ -34,6 +34,8 @@ extern ID3D10EffectVectorVariable* Light1PosVar;
 extern ID3D10EffectVectorVariable* Light1ColourVar;
 extern ID3D10EffectVectorVariable* Light2PosVar;
 extern ID3D10EffectVectorVariable* Light2ColourVar;
+extern ID3D10EffectVectorVariable* DirrectionalVecVar;
+extern ID3D10EffectVectorVariable* DirrectionalColourVar;
 extern ID3D10EffectVectorVariable* SphereColourVar;
 extern ID3D10EffectVectorVariable* AmbientColourVar;
 extern ID3D10EffectVectorVariable* CameraPosVar;

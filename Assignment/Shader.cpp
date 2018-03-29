@@ -39,6 +39,8 @@ ID3D10EffectVectorVariable* Light1PosVar     = NULL;
 ID3D10EffectVectorVariable* Light1ColourVar  = NULL;
 ID3D10EffectVectorVariable* Light2PosVar     = NULL;
 ID3D10EffectVectorVariable* Light2ColourVar  = NULL;
+ID3D10EffectVectorVariable* DirrectionalVecVar = NULL;
+ID3D10EffectVectorVariable* DirrectionalColourVar = NULL;
 ID3D10EffectVectorVariable* SphereColourVar  = NULL;
 ID3D10EffectVectorVariable* AmbientColourVar = NULL;
 ID3D10EffectVectorVariable* CameraPosVar     = NULL; // Camera position used for specular light
@@ -102,14 +104,16 @@ bool InitShaders()
 	ViewProjMatrixVar = Effect->GetVariableByName("ViewProjMatrix")->AsMatrix();
 
 	// Also access shader variables needed for lighting
-	Light1PosVar     = Effect->GetVariableByName("Light1Pos"      )->AsVector();
-	Light1ColourVar  = Effect->GetVariableByName("Light1Colour"   )->AsVector();
-	Light2PosVar     = Effect->GetVariableByName("Light2Pos"      )->AsVector();
-	Light2ColourVar  = Effect->GetVariableByName("Light2Colour"   )->AsVector();
-	SphereColourVar  = Effect->GetVariableByName("SphereColour"   )->AsVector();
-	AmbientColourVar = Effect->GetVariableByName("AmbientColour"  )->AsVector();
-	CameraPosVar     = Effect->GetVariableByName("CameraPos"      )->AsVector();
-	SpecularPowerVar = Effect->GetVariableByName("SpecularPower"  )->AsScalar();
+	Light1PosVar          = Effect->GetVariableByName("Light1Pos"         )->AsVector();
+	Light1ColourVar       = Effect->GetVariableByName("Light1Colour"      )->AsVector();
+	Light2PosVar          = Effect->GetVariableByName("Light2Pos"         )->AsVector();
+	Light2ColourVar       = Effect->GetVariableByName("Light2Colour"      )->AsVector();
+	DirrectionalVecVar    = Effect->GetVariableByName("DirrectionalVec"   )->AsVector();
+	DirrectionalColourVar = Effect->GetVariableByName("DirrectionalColour")->AsVector();
+	SphereColourVar       = Effect->GetVariableByName("SphereColour"      )->AsVector();
+	AmbientColourVar      = Effect->GetVariableByName("AmbientColour"     )->AsVector();
+	CameraPosVar          = Effect->GetVariableByName("CameraPos"         )->AsVector();
+	SpecularPowerVar      = Effect->GetVariableByName("SpecularPower"     )->AsScalar();
 
 	// Miscellaneous shader variables
 	ParallaxDepthVar = Effect->GetVariableByName( "ParallaxDepth" )->AsScalar();

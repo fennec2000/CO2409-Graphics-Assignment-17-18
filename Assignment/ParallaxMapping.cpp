@@ -57,6 +57,9 @@ D3DXVECTOR3 AmbientColour = D3DXVECTOR3( 0.2f, 0.2f, 0.3f );
 D3DXVECTOR3 Light1Colour  = D3DXVECTOR3( 0.8f, 0.8f, 1.0f );
 D3DXVECTOR3 Light2Colour  = D3DXVECTOR3( 1.0f, 0.8f, 0.2f ) * 30;
 D3DXVECTOR3 Light2ColourDefault = Light2Colour;
+D3DXVECTOR3 DirrectionalColour = D3DXVECTOR3(0, 0, 1.0f) * 0.1f;
+D3DXVECTOR3 DirrectionalVec = D3DXVECTOR3(0, 1, 0);
+
 D3DXVECTOR3 SphereColour  = D3DXVECTOR3(1.0f, 0.41f, 0.7f) * 0.3f;
 float SpecularPower = 256.0f;
 
@@ -259,14 +262,16 @@ void RenderScene()
 	ProjMatrixVar->SetMatrix( (float*)&MainCamera->ProjectionMatrix() );
 
 	// Pass light information to the vertex shader - lights are the same for each model
-	Light1PosVar->    SetRawValue( Light1->Position(), 0, 12 );  // Send 3 floats (12 bytes) from C++ LightPos variable (x,y,z) to shader counterpart (middle parameter is unused) 
-	Light1ColourVar-> SetRawValue( Light1Colour, 0, 12 );
-	Light2PosVar->    SetRawValue( Light2->Position(), 0, 12 );
-	Light2ColourVar-> SetRawValue( Light2Colour, 0, 12 );
-	SphereColourVar-> SetRawValue( SphereColour, 0, 12);
-	AmbientColourVar->SetRawValue( AmbientColour, 0, 12 );
-	CameraPosVar->    SetRawValue( MainCamera->Position(), 0, 12 );
-	SpecularPowerVar->SetFloat( SpecularPower );
+	Light1PosVar->         SetRawValue( Light1->Position(), 0, 12 );  // Send 3 floats (12 bytes) from C++ LightPos variable (x,y,z) to shader counterpart (middle parameter is unused) 
+	Light1ColourVar->      SetRawValue( Light1Colour, 0, 12 );
+	Light2PosVar->         SetRawValue( Light2->Position(), 0, 12 );
+	Light2ColourVar->      SetRawValue( Light2Colour, 0, 12 );
+	DirrectionalVecVar->   SetRawValue( DirrectionalVec, 0, 12);
+	DirrectionalColourVar->SetRawValue( DirrectionalColour, 0, 12);
+	SphereColourVar->      SetRawValue( SphereColour, 0, 12);
+	AmbientColourVar->     SetRawValue( AmbientColour, 0, 12 );
+	CameraPosVar->         SetRawValue( MainCamera->Position(), 0, 12 );
+	SpecularPowerVar->     SetFloat( SpecularPower );
 
 	// Parallax mapping depth
 	ParallaxDepthVar->SetFloat( UseParallax ? ParallaxDepth : 0.0f );

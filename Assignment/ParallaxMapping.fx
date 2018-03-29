@@ -61,8 +61,10 @@ float4x4 ProjMatrix;
 // Information used for lighting (in the vertex or pixel shader)
 float3 Light1Pos;
 float3 Light2Pos;
+float3 DirrectionalVec;
 float3 Light1Colour;
 float3 Light2Colour;
+float3 DirrectionalColour;
 float3 AmbientColour;
 float  SpecularPower;
 float3 CameraPos;
@@ -259,9 +261,14 @@ float4 NormalMapLighting( VS_NORMALMAP_OUTPUT vOut ) : SV_Target
 	halfway = normalize(Light2Dir + CameraDir);
 	float3 SpecularLight2 = DiffuseLight2 * pow( max( dot(worldNormal.xyz, halfway), 0 ), SpecularPower );
 
+	//// DIRRECTIONAL
+	float3 DiffuseDir = DirrectionalColour * max(dot(worldNormal.xyz, DirrectionalVec), 0);
+	halfway = normalize(DirrectionalVec + CameraDir);
+	float3 SpecularDir = DiffuseDir * pow(max(dot(worldNormal.xyz, halfway), 0), SpecularPower);
+
 	// Sum the effect of the two lights - add the ambient at this stage rather than for each light (or we will get twice the ambient level)
-	float3 DiffuseLight = AmbientColour + DiffuseLight1 + DiffuseLight2;
-	float3 SpecularLight = SpecularLight1 + SpecularLight2;
+	float3 DiffuseLight = AmbientColour + DiffuseLight1 + DiffuseLight2 + DiffuseDir;
+	float3 SpecularLight = SpecularLight1 + SpecularLight2 + SpecularDir;
 
 
 	////////////////////
@@ -311,8 +318,8 @@ float4 NormalMapLightingSphere(VS_NORMALMAP_OUTPUT vOut) : SV_Target
 	float3x3 invWorldMatrix = transpose(WorldMatrix);
 	float3 cameraModelDir = normalize(mul(CameraDir, invWorldMatrix)); // Normalise in case world matrix is scaled
 
-																	   // Then transform model-space camera vector into tangent space (texture coordinate space) to give the direction to offset texture
-																	   // coordinate, only interested in x and y components. Calculated inverse tangent matrix above, so invert it back for this step
+	// Then transform model-space camera vector into tangent space (texture coordinate space) to give the direction to offset texture
+	// coordinate, only interested in x and y components. Calculated inverse tangent matrix above, so invert it back for this step
 	float3x3 tangentMatrix = transpose(invTangentMatrix);
 	float2 textureOffsetDir = mul(cameraModelDir, tangentMatrix);
 
@@ -362,9 +369,14 @@ float4 NormalMapLightingSphere(VS_NORMALMAP_OUTPUT vOut) : SV_Target
 	halfway = normalize(Light2Dir + CameraDir);
 	float3 SpecularLight2 = DiffuseLight2 * pow(max(dot(worldNormal.xyz, halfway), 0), SpecularPower);
 
+	//// DIRRECTIONAL
+	float3 DiffuseDir = DirrectionalColour * max(dot(worldNormal.xyz, DirrectionalVec), 0);
+	halfway = normalize(DirrectionalVec + CameraDir);
+	float3 SpecularDir = DiffuseDir * pow(max(dot(worldNormal.xyz, halfway), 0), SpecularPower);
+
 	// Sum the effect of the two lights - add the ambient at this stage rather than for each light (or we will get twice the ambient level)
-	float3 DiffuseLight = AmbientColour + DiffuseLight1 + DiffuseLight2;
-	float3 SpecularLight = SpecularLight1 + SpecularLight2;
+	float3 DiffuseLight = AmbientColour + DiffuseLight1 + DiffuseLight2 + DiffuseDir;
+	float3 SpecularLight = SpecularLight1 + SpecularLight2 + SpecularDir;
 
 
 	////////////////////
@@ -385,7 +397,6 @@ float4 NormalMapLightingSphere(VS_NORMALMAP_OUTPUT vOut) : SV_Target
 
 	return combinedColour;
 }
-
 
 // A pixel shader that just tints a (diffuse) texture with a fixed colour
 //
