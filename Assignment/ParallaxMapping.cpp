@@ -15,9 +15,6 @@
 // Global Scene Variables
 //--------------------------------------------------------------------------------------
 
-// Enums
-enum LightState { R, G, B };        // current target for the light to become
-
 // Constants controlling speed of movement/rotation. [Note for Games Dev 1 students: measured in units per second because we're using frame time]
 const float kRotationSpeed = 2.0f;  // 4 radians per second for rotation
 const float kMovementSpeed = 50.0f; // 10 units per second for movement (what a unit of length is depends on 3D model - i.e. an artist decision usually)
@@ -59,6 +56,8 @@ D3DXVECTOR3 Light2Colour  = D3DXVECTOR3( 1.0f, 0.8f, 0.2f ) * 30;
 D3DXVECTOR3 Light2ColourDefault = Light2Colour;
 D3DXVECTOR3 DirrectionalColour = D3DXVECTOR3(0, 0, 1.0f) * 0.1f;
 D3DXVECTOR3 DirrectionalVec = D3DXVECTOR3(0, 1, 0);
+D3DXVECTOR3 SpotLightColour = D3DXVECTOR3(0, 0, 1.0f) * 0.1f;
+D3DXVECTOR3 SpotLightVec = D3DXVECTOR3(0, 1, 0);
 
 D3DXVECTOR3 SphereColour  = D3DXVECTOR3(1.0f, 0.41f, 0.7f) * 0.3f;
 float SpecularPower = 256.0f;
@@ -66,12 +65,13 @@ float SpecularPower = 256.0f;
 // Light 1 colour to HSL
 // used to rotate colours
 float HSL[3];
-float ColourRotateRate = 100.0f;
+float ColourRotateRate = 1000.0f;
 float Light1Power = 20.0f;
 
 // Display models where the lights are. One of the lights will follow an orbit
 Model* Light1;
 Model* Light2;
+Model* SpotLight;
 const float LightOrbitRadius = 20.0f;
 const float LightOrbitSpeed  = 0.7f;
 
@@ -100,12 +100,13 @@ bool InitScene()
 	//---------------------------
 	// Load/Create models
 
-	Cube   = new Model;
-	Teapot = new Model;
-	Sphere = new Model;
-	Floor  = new Model;
-	Light1 = new Model;
-	Light2 = new Model;
+	Cube      = new Model;
+	Teapot    = new Model;
+	Sphere    = new Model;
+	Floor     = new Model;
+	Light1    = new Model;
+	Light2    = new Model;
+	SpotLight = new Model;
 
 	// Load the model's geometry from ".X" files
 	// The third parameter is set to true on the first 2 lines below. This asks the import code to generate
@@ -116,12 +117,13 @@ bool InitScene()
 	// process is done in the import code, but the detail is beyond the scope of this lab exercise
 	//
 	bool success = true;
-	if (!Cube->  Load( "Cube.x",   ParallaxMappingTechnique,        true ))  success = false;
-	if (!Teapot->Load( "Teapot.x", ParallaxMappingTechnique,        true ))  success = false;
-	if (!Sphere->Load( "Sphere.x", ParallaxMappingTechniqueSphere,  true ))  success = false;
-	if (!Floor-> Load( "Hills.x",  ParallaxMappingTechnique,        true ))  success = false;
-	if (!Light1->Load( "Light.x",  AdditiveTintTexTechnique              ))  success = false;
-	if (!Light2->Load( "Light.x",  AdditiveTintTexTechnique              ))  success = false;
+	if (!Cube->     Load( "Cube.x",   ParallaxMappingTechnique,        true ))  success = false;
+	if (!Teapot->   Load( "Teapot.x", ParallaxMappingTechnique,        true ))  success = false;
+	if (!Sphere->   Load( "Sphere.x", ParallaxMappingTechniqueSphere,  true ))  success = false;
+	if (!Floor->    Load( "Hills.x",  ParallaxMappingTechnique,        true ))  success = false;
+	if (!Light1->   Load( "Light.x",  AdditiveTintTexTechnique              ))  success = false;
+	if (!Light2->   Load( "Light.x",  AdditiveTintTexTechnique              ))  success = false;
+	if (!SpotLight->Load( "Light.x",  AdditiveTintTexTechnique              ))  success = false;
 	if (!success)
 	{
 		MessageBox(NULL, L"Error loading model files. Ensure your files are correctly named and in the same folder as this executable.", L"Error", MB_OK);
@@ -136,6 +138,8 @@ bool InitScene()
 	Light1->SetScale( 5.0f );
 	Light2->SetPosition( D3DXVECTOR3( 20, 40, -20) );
 	Light2->SetScale( 12.0f );
+	SpotLight->SetPosition( D3DXVECTOR3(20, 20, -20));
+	SpotLight->SetScale( 12.0f );
 
 	// Setup Light1's colour
 	// Light 1 colour to HSL
@@ -178,6 +182,7 @@ bool InitScene()
 //--------------------------------------------------------------------------------------
 void ReleaseScene()
 {
+	delete SpotLight;  SpotLight = NULL;
 	delete Light2;     Light2 = NULL;
 	delete Light1;     Light1 = NULL;
 	delete Floor;      Floor = NULL;
@@ -205,7 +210,7 @@ void UpdateScene( float frameTime )
 {
 	// Control camera position and update its matrices (view matrix, projection matrix) each frame
 	// Don't be deceived into thinking that this is a new method to control models - the same code we used previously is in the camera class
-	MainCamera->Control(frameTime, Key_W, Key_S, Key_A, Key_D, Key_Q, Key_E, Key_Z, Key_X);
+	MainCamera->Control(frameTime, Key_W, Key_S, Key_A, Key_D, Key_E, Key_Q, Key_Z, Key_X);
 	
 	// Control cube position and update its world matrix each frame
 	Cube->Control(frameTime, Key_I, Key_K, Key_J, Key_L, Key_U, Key_O, Key_Comma, Key_Period);
@@ -268,6 +273,9 @@ void RenderScene()
 	Light2ColourVar->      SetRawValue( Light2Colour, 0, 12 );
 	DirrectionalVecVar->   SetRawValue( DirrectionalVec, 0, 12);
 	DirrectionalColourVar->SetRawValue( DirrectionalColour, 0, 12);
+	SpotLightPosVar->      SetRawValue( SpotLight->Position(), 0, 12);
+	SpotLightVecVar->      SetRawValue( SpotLightVec, 0, 12);
+	SpotLightColourVar->   SetRawValue( SpotLightColour, 0, 12);
 	SphereColourVar->      SetRawValue( SphereColour, 0, 12);
 	AmbientColourVar->     SetRawValue( AmbientColour, 0, 12 );
 	CameraPosVar->         SetRawValue( MainCamera->Position(), 0, 12 );
@@ -315,6 +323,11 @@ void RenderScene()
 	DiffuseMapVar->SetResource( LightDiffuseMap );
 	TintColourVar->SetRawValue(Light2Colour, 0, 12 );
 	Light2->Render( AdditiveTintTexTechnique );
+
+	WorldMatrixVar->SetMatrix( (float*)SpotLight->WorldMatrix() );
+	DiffuseMapVar->SetResource( LightDiffuseMap );
+	TintColourVar->SetRawValue( SpotLightColour, 0, 12 );
+	SpotLight->Render( AdditiveTintTexTechnique );
 
 
 	//---------------------------

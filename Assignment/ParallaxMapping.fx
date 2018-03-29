@@ -61,15 +61,18 @@ float4x4 ProjMatrix;
 // Information used for lighting (in the vertex or pixel shader)
 float3 Light1Pos;
 float3 Light2Pos;
+float3 SpotLightPos;
 float3 DirrectionalVec;
+float3 SpotLightVec;
 float3 Light1Colour;
 float3 Light2Colour;
+float3 SpotLightColour;
 float3 DirrectionalColour;
 float3 AmbientColour;
 float  SpecularPower;
 float3 CameraPos;
-float Mover;
-float Wiggle;
+float  Mover;
+float  Wiggle;
 
 // Variable used to tint each light model to show the colour that it emits
 float3 TintColour;
@@ -266,9 +269,24 @@ float4 NormalMapLighting( VS_NORMALMAP_OUTPUT vOut ) : SV_Target
 	halfway = normalize(DirrectionalVec + CameraDir);
 	float3 SpecularDir = DiffuseDir * pow(max(dot(worldNormal.xyz, halfway), 0), SpecularPower);
 
+	//// SPOTLIGHT
+	float3 SpotToPixelVec = normalize(SpotLightPos - vOut.WorldPos.xyz);
+	float3 SpotToPixelDist = length(SpotLightPos - vOut.WorldPos.xyz);
+	float SpotDot = dot(SpotToPixelVec, SpotLightVec);
+
+	float3 DiffuseSpot = { 0, 0, 0 };
+	float3 SpecularSpot = { 0, 0, 0 };
+
+	if (SpotDot > 0.0f)
+	{
+		DiffuseSpot = SpotLightColour * max(dot(worldNormal.xyz, SpotToPixelVec), 0) / SpotToPixelDist;
+		halfway = normalize(SpotToPixelVec + CameraDir);
+		SpecularSpot = DiffuseSpot * pow(max(dot(worldNormal.xyz, halfway), 0), SpecularPower);
+	}
+
 	// Sum the effect of the two lights - add the ambient at this stage rather than for each light (or we will get twice the ambient level)
-	float3 DiffuseLight = AmbientColour + DiffuseLight1 + DiffuseLight2 + DiffuseDir;
-	float3 SpecularLight = SpecularLight1 + SpecularLight2 + SpecularDir;
+	float3 DiffuseLight = AmbientColour + DiffuseLight1 + DiffuseLight2 + DiffuseDir + DiffuseSpot;
+	float3 SpecularLight = SpecularLight1 + SpecularLight2 + SpecularDir + SpecularSpot;
 
 
 	////////////////////
