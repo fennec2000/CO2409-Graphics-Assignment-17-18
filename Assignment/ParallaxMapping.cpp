@@ -32,6 +32,7 @@ Model*  Cube;
 Model*  Teapot;
 Model*  Floor;
 Model*  Sphere;
+Model*  Troll;
 Camera* MainCamera;
 
 // Textures - including normal maps
@@ -44,6 +45,8 @@ ID3D10ShaderResourceView* SphereNormalMap  = NULL;
 ID3D10ShaderResourceView* FloorDiffuseMap  = NULL;
 ID3D10ShaderResourceView* FloorNormalMap   = NULL;
 ID3D10ShaderResourceView* LightDiffuseMap  = NULL;
+ID3D10ShaderResourceView* TrollDiffuseMap  = NULL;
+ID3D10ShaderResourceView* CellMap          = NULL;
 float ParallaxDepth = 0.08f; // Overall depth of bumpiness for parallax mapping
 bool UseParallax    = true;  // Toggle for parallax 
 
@@ -63,6 +66,10 @@ float SpotLightAngle = 0.52f; // aprox 30 degrees - 29.79381
 
 D3DXVECTOR3 SphereColour  = D3DXVECTOR3(1.0f, 0.41f, 0.7f) * 0.3f;
 float SpecularPower = 256.0f;
+
+// Cell shading data
+D3DXVECTOR3 OutlineColour = D3DXVECTOR3(0, 0, 0); // Black outlines
+float       OutlineThickness = 0.015f;
 
 // Light 1 colour to HSL
 // used to rotate colours
@@ -105,6 +112,7 @@ bool InitScene()
 	Cube      = new Model;
 	Teapot    = new Model;
 	Sphere    = new Model;
+	Troll     = new Model;
 	Floor     = new Model;
 	Light1    = new Model;
 	Light2    = new Model;
@@ -126,6 +134,7 @@ bool InitScene()
 	if (!Light1->   Load( "Light.x",  AdditiveTintTexTechnique              ))  success = false;
 	if (!Light2->   Load( "Light.x",  AdditiveTintTexTechnique              ))  success = false;
 	if (!SpotLight->Load( "Light.x",  AdditiveTintTexTechnique              ))  success = false;
+	if (!Troll->    Load( "Troll.x",  CellShadingTechnique                  ))  success = false;
 	if (!success)
 	{
 		MessageBox(NULL, L"Error loading model files. Ensure your files are correctly named and in the same folder as this executable.", L"Error", MB_OK);
@@ -169,6 +178,8 @@ bool InitScene()
 	if (FAILED( D3DX10CreateShaderResourceViewFromFile( Device, L"CobbleDiffuseSpecular.dds",  NULL, NULL, &FloorDiffuseMap,  NULL ) ))  success = false;
 	if (FAILED( D3DX10CreateShaderResourceViewFromFile( Device, L"CobbleNormalDepth.dds",      NULL, NULL, &FloorNormalMap,   NULL ) ))  success = false;
 	if (FAILED( D3DX10CreateShaderResourceViewFromFile( Device, L"flare.jpg",                  NULL, NULL, &LightDiffuseMap,  NULL ) ))  success = false;
+	if (FAILED( D3DX10CreateShaderResourceViewFromFile( Device, L"Green.png",                  NULL, NULL, &TrollDiffuseMap,  NULL ) ))  success = false;
+	if (FAILED( D3DX10CreateShaderResourceViewFromFile( Device, L"CellGradient.png",           NULL, NULL, &CellMap,          NULL ) ))  success = false;
 	if (!success)
 	{
 		MessageBox(NULL, L"Error loading texture files. Ensure your files are correctly named and in the same folder as this executable.", L"Error", MB_OK);
@@ -184,6 +195,7 @@ bool InitScene()
 //--------------------------------------------------------------------------------------
 void ReleaseScene()
 {
+	delete Troll;      Troll = NULL;
 	delete SpotLight;  SpotLight = NULL;
 	delete Light2;     Light2 = NULL;
 	delete Light1;     Light1 = NULL;
@@ -192,6 +204,7 @@ void ReleaseScene()
 	delete Cube;       Cube = NULL;
 	delete MainCamera; MainCamera = NULL;
 
+	if (TrollDiffuseMap)  TrollDiffuseMap->Release();
     if (LightDiffuseMap)  LightDiffuseMap->Release();
 	if (FloorNormalMap)   FloorNormalMap->Release();
 	if (FloorDiffuseMap)  FloorDiffuseMap->Release();
@@ -324,13 +337,18 @@ void RenderScene()
 
 	WorldMatrixVar->SetMatrix( (float*)Light2->WorldMatrix() );
 	DiffuseMapVar->SetResource( LightDiffuseMap );
-	TintColourVar->SetRawValue(Light2Colour, 0, 12 );
+	TintColourVar->SetRawValue( Light2Colour, 0, 12 );
 	Light2->Render( AdditiveTintTexTechnique );
 
 	WorldMatrixVar->SetMatrix( (float*)SpotLight->WorldMatrix() );
 	DiffuseMapVar->SetResource( LightDiffuseMap );
 	TintColourVar->SetRawValue( SpotLightColour, 0, 12 );
 	SpotLight->Render( AdditiveTintTexTechnique );
+
+	WorldMatrixVar->SetMatrix( (float*)Troll->WorldMatrix() );
+	DiffuseMapVar->SetResource( TrollDiffuseMap );
+	ConstantColourVar->SetRawValue( OutlineColour, 0, 12 );
+	Troll->Render( CellShadingTechnique );
 
 
 	//---------------------------

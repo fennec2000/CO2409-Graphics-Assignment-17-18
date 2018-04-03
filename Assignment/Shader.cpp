@@ -23,6 +23,7 @@ ID3D10Effect* Effect = NULL;
 ID3D10EffectTechnique* ParallaxMappingTechnique   = NULL;
 ID3D10EffectTechnique* ParallaxMappingTechniqueSphere = NULL;
 ID3D10EffectTechnique* AdditiveTintTexTechnique = NULL;
+ID3D10EffectTechnique* CellShadingTechnique = NULL;
 
 // Matrices - variables used to send values from C++ to shader (fx file) variables
 // Note, even though we may have many models, the shader only renders one thing at
@@ -53,10 +54,13 @@ ID3D10EffectScalarVariable* SpecularPowerVar = NULL;
 // Textures - two textures in the pixel shader now - diffuse/specular map and normal/depth map
 ID3D10EffectShaderResourceVariable* DiffuseMapVar = NULL;
 ID3D10EffectShaderResourceVariable* NormalMapVar  = NULL;
+ID3D10EffectShaderResourceVariable* CellMapVar = NULL;
 
 // Miscellaneous variables to send values from C++ to shaders
-ID3D10EffectScalarVariable* ParallaxDepthVar = NULL; // To set the depth of the parallax mapping effect
-ID3D10EffectVectorVariable* TintColourVar    = NULL; // For tinting the light models
+ID3D10EffectScalarVariable* ParallaxDepthVar    = NULL; // To set the depth of the parallax mapping effect
+ID3D10EffectVectorVariable* TintColourVar       = NULL; // For tinting the light models
+ID3D10EffectVectorVariable* ConstantColourVar   = NULL; // For cell shaded models
+ID3D10EffectScalarVariable* OutlineThicknessVar = NULL;
 
 // Effects
 ID3D10EffectScalarVariable* MoverVar         = NULL;
@@ -124,13 +128,16 @@ bool InitShaders()
 	SpecularPowerVar      = Effect->GetVariableByName("SpecularPower"     )->AsScalar();
 
 	// Miscellaneous shader variables
-	ParallaxDepthVar = Effect->GetVariableByName( "ParallaxDepth" )->AsScalar();
-	TintColourVar    = Effect->GetVariableByName( "TintColour"    )->AsVector();
+	ParallaxDepthVar    = Effect->GetVariableByName( "ParallaxDepth"    )->AsScalar();
+	TintColourVar       = Effect->GetVariableByName( "TintColour"       )->AsVector();
+	ConstantColourVar   = Effect->GetVariableByName( "ConstantColour"   )->AsVector();
+	OutlineThicknessVar = Effect->GetVariableByName( "OutlineThickness" )->AsScalar();
 
 	// Also access the texture used in the shader in the same way (note that this variable is a "Shader Resource")
 	// Both diffuse and normal maps have variables
 	DiffuseMapVar    = Effect->GetVariableByName("DiffuseMap"     )->AsShaderResource();
 	NormalMapVar     = Effect->GetVariableByName("NormalMap"      )->AsShaderResource();
+	CellMapVar       = Effect->GetVariableByName("CellMap"        )->AsShaderResource();
 
 	// Effects
 	MoverVar         = Effect->GetVariableByName("Mover"          )->AsScalar();

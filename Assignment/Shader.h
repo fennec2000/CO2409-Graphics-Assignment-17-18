@@ -22,6 +22,7 @@ extern ID3D10Effect*               Effect;
 extern ID3D10EffectTechnique*      ParallaxMappingTechnique;
 extern ID3D10EffectTechnique*      ParallaxMappingTechniqueSphere;
 extern ID3D10EffectTechnique*      AdditiveTintTexTechnique;
+extern ID3D10EffectTechnique*      CellShadingTechnique;
 
 // Matrices - variables used to send values from C++ to shader (fx file) variables
 extern ID3D10EffectMatrixVariable* WorldMatrixVar;
@@ -48,10 +49,13 @@ extern ID3D10EffectScalarVariable* SpecularPowerVar;
 // Textures - variables used to send values from C++ to shader (fx file) variables
 extern ID3D10EffectShaderResourceVariable* DiffuseMapVar;
 extern ID3D10EffectShaderResourceVariable* NormalMapVar;
+extern ID3D10EffectShaderResourceVariable* CellMapVar;
 
 // Miscellaneous variables to send values from C++ to shaders 
 extern ID3D10EffectScalarVariable* ParallaxDepthVar;
 extern ID3D10EffectVectorVariable* TintColourVar;
+extern ID3D10EffectVectorVariable* ConstantColourVar;
+extern ID3D10EffectScalarVariable* OutlineThicknessVar;
 
 // Effects
 extern ID3D10EffectScalarVariable* MoverVar;

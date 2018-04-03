@@ -80,6 +80,7 @@ float3 TintColour;
 
 // Diffuse map (sometimes also containing specular map in alpha channel). Loaded from a bitmap in the C++ then sent over to the shader variable in the usual way
 Texture2D DiffuseMap;
+Texture2D CellMap;
 
 //****| INFO | Normal map, now contains depth per pixel in the alpha channel ****//
 Texture2D NormalMap;
@@ -87,8 +88,20 @@ Texture2D NormalMap;
 //****| INFO | Also store a factor to strengthen/weaken the parallax effect. Cannot exaggerate it too much or will get distortion ****//
 float ParallaxDepth;
 
+// Variable used to for constant colour output (cell shading outline and tint for light models)
+float3 ConstantColour;
+
+// Controls thickness of outlines for cell shading
+float OutlineThickness;
+
 
 // Sampler to use with the diffuse/normal maps. Specifies texture filtering and addressing mode to use when accessing texture pixels
+SamplerState PointSampleClamp
+{
+	Filter = MIN_MAG_MIP_POINT;
+	AddressU = Clamp;
+	AddressV = Clamp;
+};
 SamplerState TrilinearWrap
 {
     Filter = MIN_MAG_MIP_LINEAR;
@@ -175,6 +188,57 @@ VS_BASIC_OUTPUT BasicTransform( VS_BASIC_INPUT vIn )
 	
 	// Pass texture coordinates (UVs) on to the pixel shader
 	vOut.UV = vIn.UV;
+
+	return vOut;
+}
+
+VS_NORMALMAP_OUTPUT VertexLightingTex(VS_BASIC_INPUT vIn)
+{
+	VS_NORMALMAP_OUTPUT vOut;
+
+	// Use world matrix passed from C++ to transform the input model vertex position into world space
+	float4 modelPos = float4(vIn.Pos, 1.0f); // Promote to 1x4 so we can multiply by 4x4 matrix, put 1.0 in 4th element for a point (0.0 for a vector)
+	float4 worldPos = mul(modelPos, WorldMatrix);
+	vOut.WorldPos = worldPos.xyz;
+
+	// Use camera matrices to further transform the vertex from world space into view space (camera's point of view) and finally into 2D "projection" space for rendering
+	float4 viewPos = mul(worldPos, ViewMatrix);
+	vOut.ProjPos = mul(viewPos, ProjMatrix);
+
+	// Transform the vertex normal from model space into world space (almost same as first lines of code above)
+	float4 modelNormal = float4(vIn.Normal, 0.0f); // Set 4th element to 0.0 this time as normals are vectors
+	vOut.ModelNormal = mul(modelNormal, WorldMatrix).xyz;
+
+	// Pass texture coordinates (UVs) on to the pixel shader, the vertex shader doesn't need them
+	vOut.UV = vIn.UV;
+
+	return vOut;
+}
+
+VS_BASIC_OUTPUT ExpandOutline(VS_BASIC_INPUT vIn)
+{
+	VS_BASIC_OUTPUT vOut;
+
+	// Transform model-space vertex position to world-space
+	float4 modelPos = float4(vIn.Pos, 1.0f); // Promote to 1x4 so we can multiply by 4x4 matrix, put 1.0 in 4th element for a point (0.0 for a vector)
+	float4 worldPos = mul(modelPos, WorldMatrix);
+
+	// Next the usual transform from world space to camera space - but we don't go any further here - this will be used to help expand the outline
+	// The result "viewPos" is the xyz position of the vertex as seen from the camera. The z component is the distance from the camera - that's useful...
+	float4 viewPos = mul(worldPos, ViewMatrix);
+
+	// Transform model normal to world space, using the normal to expand the geometry, not for lighting
+	float4 modelNormal = float4(vIn.Normal, 0.0f); // Set 4th element to 0.0 this time as normals are vectors
+	float4 worldNormal = normalize(mul(modelNormal, WorldMatrix)); // Normalise in case of world matrix scaling
+
+	// Now we return to the world position of this vertex and expand it along the world normal - that will expand the geometry outwards.
+	// Use the distance from the camera to decide how much to expand. Use this distance together with a sqrt to creates an outline that
+	// gets thinner in the distance, but always remains clear. Overall thickness is also controlled by the constant "OutlineThickness"
+	worldPos += OutlineThickness * sqrt(viewPos.z) * worldNormal;
+
+	// Transform new expanded world-space vertex position to viewport-space and output
+	viewPos = mul(worldPos, ViewMatrix);
+	vOut.ProjPos = mul(viewPos, ProjMatrix);
 
 	return vOut;
 }
@@ -446,6 +510,122 @@ float4 NormalMapLightingSphere(VS_NORMALMAP_OUTPUT vOut) : SV_Target
 	return combinedColour;
 }
 
+float4 VertexLitDiffuseMap(VS_NORMALMAP_OUTPUT vOut) : SV_Target  // The ": SV_Target" bit just indicates that the returned float4 colour goes to the render target (i.e. it's a colour to render)
+{
+	// Can't guarantee the normals are length 1 now (because the world matrix may contain scaling), so renormalise
+	// If lighting in the pixel shader, this is also because the interpolation from vertex shader to pixel shader will also rescale normals
+	float3 worldNormal = normalize(vOut.ModelNormal);
+
+
+	///////////////////////
+	// Calculate lighting
+
+	// Calculate direction of camera
+	float3 CameraDir = normalize(CameraPos - vOut.WorldPos.xyz); // Position of camera - position of current vertex (or pixel) (in world space)
+
+	//****| INFO |*************************************************************************************//
+	// To make a cartoon look to the lighting, we clamp the basic light level to just a small range of
+	// colours. This is done by using the light level itself as the U texture coordinate to look up
+	// a colour in a special 1D texture (a single line). This could be done with if statements, but
+	// GPUs are much faster at looking up small textures than if statements
+	//*************************************************************************************************//
+	///////////////////////
+	// Calculate lighting
+
+	// Would normally calculate "CameraDir" here, but it has already been calculated for use in the parallax mapping
+
+	//// LIGHT 1
+	float3 Light1Dir = normalize(Light1Pos - vOut.WorldPos.xyz);   // Direction for each light is different
+	float3 Light1Dist = length(Light1Pos - vOut.WorldPos.xyz);
+	float DiffuseLevel1 = max(dot(worldNormal.xyz, Light1Dir), 0);
+	float CellDiffuseLevel1 = CellMap.Sample(PointSampleClamp, DiffuseLevel1).r;
+	float3 DiffuseLight1 = Light1Colour * CellDiffuseLevel1 / Light1Dist;
+
+	float3 halfway = normalize(Light1Dir + CameraDir);
+	float SpecularLevel1 = pow(max(dot(worldNormal.xyz, halfway), 0), SpecularPower);
+	float CellSpecularLevel1 = CellMap.Sample(PointSampleClamp, SpecularLevel1).r;
+	float3 SpecularLight1 = DiffuseLight1 * CellSpecularLevel1;
+
+	//// LIGHT 2
+	float3 Light2Dir = normalize(Light2Pos - vOut.WorldPos.xyz);
+	float3 Light2Dist = length(Light2Pos - vOut.WorldPos.xyz);
+	float DiffuseLevel2 = max(dot(worldNormal.xyz, Light2Dir), 0);
+	float CellDiffuseLevel2 = CellMap.Sample(PointSampleClamp, DiffuseLevel2).r;
+	float3 DiffuseLight2 = Light2Colour * CellDiffuseLevel2 / Light2Dist;
+
+	halfway = normalize(Light2Dir + CameraDir);
+	float SpecularLevel2 = pow(max(dot(worldNormal.xyz, halfway), 0), SpecularPower);
+	float CellSpecularLevel2 = CellMap.Sample(PointSampleClamp, SpecularLevel2).r;
+	float3 SpecularLight2 = DiffuseLight2 * CellSpecularLevel2;
+
+	//// DIRRECTIONAL
+	float DiffuseLevelDir = max(dot(worldNormal.xyz, Light2Dir), 0);
+	float CellDiffuseLevelDir = CellMap.Sample(PointSampleClamp, DiffuseLevelDir).r;
+	float3 DiffuseDir = DirrectionalColour * CellDiffuseLevelDir;
+
+	halfway = normalize(DirrectionalVec + CameraDir);
+	float SpecularLevelDir = pow(max(dot(worldNormal.xyz, halfway), 0), SpecularPower);
+	float CellSpecularLevelDir = CellMap.Sample(PointSampleClamp, SpecularLevelDir).r;
+	float3 SpecularDir = DiffuseDir * CellSpecularLevelDir;
+
+	//// SPOTLIGHT
+	float3 SpotToPixelVec = normalize(SpotLightPos - vOut.WorldPos.xyz);
+	float3 SpotToPixelDist = length(SpotLightPos - vOut.WorldPos.xyz);
+	float SpotDot = dot(SpotToPixelVec, SpotLightVec);
+
+	float3 DiffuseSpot = { 0, 0, 0 };
+	float3 SpecularSpot = { 0, 0, 0 };
+	float angle = acos(SpotDot);
+
+	if (angle < SpotLightAngle)
+	{
+		float DiffuseLevelSpot = max(dot(worldNormal.xyz, SpotToPixelVec), 0);
+		float CellDiffuseLevelSpot = CellMap.Sample(PointSampleClamp, DiffuseLevelSpot).r;
+		DiffuseSpot = SpotLightColour * CellDiffuseLevelSpot / SpotToPixelDist;
+
+		halfway = normalize(SpotToPixelVec + CameraDir);
+		float SpecularLevelSpot = pow(max(dot(worldNormal.xyz, halfway), 0), SpecularPower);
+		float CellSpecularLevelDir = CellMap.Sample(PointSampleClamp, SpecularLevelSpot).r;
+		SpecularSpot = DiffuseSpot * CellSpecularLevelDir;
+	}
+	else if (angle < SpotLightAngle + 0.0523599f)
+	{
+		float DiffuseLevelSpot = max(dot(worldNormal.xyz, SpotToPixelVec), 0);
+		float CellDiffuseLevelSpot = CellMap.Sample(PointSampleClamp, DiffuseLevelSpot).r;
+		DiffuseSpot = SpotLightColour * CellDiffuseLevelSpot / SpotToPixelDist / 5;
+
+		halfway = normalize(SpotToPixelVec + CameraDir);
+		float SpecularLevelSpot = pow(max(dot(worldNormal.xyz, halfway), 0), SpecularPower);
+		float CellSpecularLevelDir = CellMap.Sample(PointSampleClamp, SpecularLevelSpot).r;
+		SpecularSpot = DiffuseSpot * CellSpecularLevelDir;
+	}
+
+	// Sum the effect of the two lights - add the ambient at this stage rather than for each light (or we will get twice the ambient level)
+	float3 DiffuseLight = AmbientColour + DiffuseLight1 + DiffuseLight2 + DiffuseDir + DiffuseSpot;
+	float3 SpecularLight = SpecularLight1 + SpecularLight2 + SpecularDir + SpecularSpot;
+
+
+	////////////////////
+	// Sample texture
+
+	// Extract diffuse material colour for this pixel from a texture (using float3, so we get RGB - i.e. ignore any alpha in the texture)
+	float4 DiffuseMaterial = DiffuseMap.Sample(TrilinearWrap, vOut.UV);
+
+	// Assume specular material colour is white (i.e. highlights are a full, untinted reflection of light)
+	float3 SpecularMaterial = DiffuseMaterial.a;
+
+
+	////////////////////
+	// Combine colours 
+
+	// Combine maps and lighting for final pixel colour
+	float4 combinedColour;
+	combinedColour.rgb = DiffuseMaterial * DiffuseLight + SpecularMaterial * SpecularLight;
+	combinedColour.a = 1.0f; // No alpha processing in this shader, so just set it to 1
+
+	return combinedColour;
+}
+
 // A pixel shader that just tints a (diffuse) texture with a fixed colour
 //
 float4 TintDiffuseMap( VS_BASIC_OUTPUT vOut ) : SV_Target
@@ -459,6 +639,12 @@ float4 TintDiffuseMap( VS_BASIC_OUTPUT vOut ) : SV_Target
 	return diffuseMapColour;
 }
 
+// A pixel shader that always outputs a fixed colour - used for the cell-shading outlines
+//
+float4 OneColour(VS_BASIC_OUTPUT vOut) : SV_Target
+{
+	return float4(ConstantColour, 1.0f); // Use alpha = 1
+}
 
 //--------------------------------------------------------------------------------------
 // States
@@ -473,6 +659,10 @@ RasterizerState CullNone  // Cull none of the polygons, i.e. show both sides
 RasterizerState CullBack  // Cull back side of polygon - normal behaviour, only show front of polygons
 {
 	CullMode = Back;
+};
+RasterizerState CullFront  // Cull back side of polygon - unsusual behaviour for special techniques
+{
+	CullMode = Front;
 };
 
 
@@ -534,6 +724,32 @@ technique10 ParallaxMappingSphere
 		SetBlendState(NoBlending, float4(0.0f, 0.0f, 0.0f, 0.0f), 0xFFFFFFFF);
 		SetRasterizerState(CullBack);
 		SetDepthStencilState(DepthWritesOn, 0);
+	}
+}
+
+technique10 CellShading
+{
+	pass P0
+	{
+		SetVertexShader(CompileShader(vs_4_0, ExpandOutline()));
+		SetGeometryShader(NULL);
+		SetPixelShader(CompileShader(ps_4_0, OneColour()));
+
+		// Cull (remove) the polygons facing us - i.e. draw the inside of the model
+		SetRasterizerState(CullFront);
+
+		// Switch off other blending states
+		SetBlendState(NoBlending, float4(0.0f, 0.0f, 0.0f, 0.0f), 0xFFFFFFFF);
+		SetDepthStencilState(DepthWritesOn, 0);
+	}
+	pass P1
+	{
+		SetVertexShader(CompileShader(vs_4_0, NormalMapTransform()));
+		SetGeometryShader(NULL);
+		SetPixelShader(CompileShader(ps_4_0, VertexLitDiffuseMap()));
+
+		// Return to standard culling (remove polygons facing away from us)
+		SetRasterizerState(CullBack);
 	}
 }
 
