@@ -44,6 +44,7 @@ ID3D10EffectVectorVariable* DirrectionalColourVar = NULL;
 ID3D10EffectVectorVariable* SpotLightPosVar = NULL;
 ID3D10EffectVectorVariable* SpotLightVecVar = NULL;
 ID3D10EffectVectorVariable* SpotLightColourVar = NULL;
+ID3D10EffectScalarVariable* SpotLightAngleVar = NULL;
 ID3D10EffectVectorVariable* SphereColourVar  = NULL;
 ID3D10EffectVectorVariable* AmbientColourVar = NULL;
 ID3D10EffectVectorVariable* CameraPosVar     = NULL; // Camera position used for specular light
@@ -116,6 +117,7 @@ bool InitShaders()
 	SpotLightPosVar       = Effect->GetVariableByName("SpotLightPos"      )->AsVector();
 	SpotLightVecVar       = Effect->GetVariableByName("SpotLightVec"      )->AsVector();
 	SpotLightColourVar    = Effect->GetVariableByName("SpotLightColour"   )->AsVector();
+	SpotLightAngleVar     = Effect->GetVariableByName("SpotLightAngle"    )->AsScalar();
 	SphereColourVar       = Effect->GetVariableByName("SphereColour"      )->AsVector();
 	AmbientColourVar      = Effect->GetVariableByName("AmbientColour"     )->AsVector();
 	CameraPosVar          = Effect->GetVariableByName("CameraPos"         )->AsVector();

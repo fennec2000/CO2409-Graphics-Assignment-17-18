@@ -56,8 +56,10 @@ D3DXVECTOR3 Light2Colour  = D3DXVECTOR3( 1.0f, 0.8f, 0.2f ) * 30;
 D3DXVECTOR3 Light2ColourDefault = Light2Colour;
 D3DXVECTOR3 DirrectionalColour = D3DXVECTOR3(0, 0, 1.0f) * 0.1f;
 D3DXVECTOR3 DirrectionalVec = D3DXVECTOR3(0, 1, 0);
-D3DXVECTOR3 SpotLightColour = D3DXVECTOR3(0, 0, 1.0f) * 0.1f;
-D3DXVECTOR3 SpotLightVec = D3DXVECTOR3(0, 1, 0);
+D3DXVECTOR3 SpotLightColour = D3DXVECTOR3(1, 1, 1) * 50;
+D3DXVECTOR3 SpotLightVec = D3DXVECTOR3(0, 0.707107f, -0.707107f); // normalised
+
+float SpotLightAngle = 0.52f; // aprox 30 degrees - 29.79381
 
 D3DXVECTOR3 SphereColour  = D3DXVECTOR3(1.0f, 0.41f, 0.7f) * 0.3f;
 float SpecularPower = 256.0f;
@@ -138,7 +140,7 @@ bool InitScene()
 	Light1->SetScale( 5.0f );
 	Light2->SetPosition( D3DXVECTOR3( 20, 40, -20) );
 	Light2->SetScale( 12.0f );
-	SpotLight->SetPosition( D3DXVECTOR3(20, 20, -20));
+	SpotLight->SetPosition( D3DXVECTOR3(60, 20, -60));
 	SpotLight->SetScale( 12.0f );
 
 	// Setup Light1's colour
@@ -276,6 +278,7 @@ void RenderScene()
 	SpotLightPosVar->      SetRawValue( SpotLight->Position(), 0, 12);
 	SpotLightVecVar->      SetRawValue( SpotLightVec, 0, 12);
 	SpotLightColourVar->   SetRawValue( SpotLightColour, 0, 12);
+	SpotLightAngleVar->    SetFloat( SpotLightAngle );
 	SphereColourVar->      SetRawValue( SphereColour, 0, 12);
 	AmbientColourVar->     SetRawValue( AmbientColour, 0, 12 );
 	CameraPosVar->         SetRawValue( MainCamera->Position(), 0, 12 );

@@ -67,6 +67,7 @@ float3 SpotLightVec;
 float3 Light1Colour;
 float3 Light2Colour;
 float3 SpotLightColour;
+float  SpotLightAngle;
 float3 DirrectionalColour;
 float3 AmbientColour;
 float  SpecularPower;
@@ -276,10 +277,17 @@ float4 NormalMapLighting( VS_NORMALMAP_OUTPUT vOut ) : SV_Target
 
 	float3 DiffuseSpot = { 0, 0, 0 };
 	float3 SpecularSpot = { 0, 0, 0 };
+	float angle = acos(SpotDot);
 
-	if (SpotDot > 0.0f)
+	if (angle < SpotLightAngle)
 	{
 		DiffuseSpot = SpotLightColour * max(dot(worldNormal.xyz, SpotToPixelVec), 0) / SpotToPixelDist;
+		halfway = normalize(SpotToPixelVec + CameraDir);
+		SpecularSpot = DiffuseSpot * pow(max(dot(worldNormal.xyz, halfway), 0), SpecularPower);
+	}
+	else if (angle < SpotLightAngle + 0.0523599f)
+	{
+		DiffuseSpot = SpotLightColour * max(dot(worldNormal.xyz, SpotToPixelVec), 0) / SpotToPixelDist / 5;
 		halfway = normalize(SpotToPixelVec + CameraDir);
 		SpecularSpot = DiffuseSpot * pow(max(dot(worldNormal.xyz, halfway), 0), SpecularPower);
 	}
@@ -392,9 +400,31 @@ float4 NormalMapLightingSphere(VS_NORMALMAP_OUTPUT vOut) : SV_Target
 	halfway = normalize(DirrectionalVec + CameraDir);
 	float3 SpecularDir = DiffuseDir * pow(max(dot(worldNormal.xyz, halfway), 0), SpecularPower);
 
+	//// SPOTLIGHT
+	float3 SpotToPixelVec = normalize(SpotLightPos - vOut.WorldPos.xyz);
+	float3 SpotToPixelDist = length(SpotLightPos - vOut.WorldPos.xyz);
+	float SpotDot = dot(SpotToPixelVec, SpotLightVec);
+
+	float3 DiffuseSpot = { 0, 0, 0 };
+	float3 SpecularSpot = { 0, 0, 0 };
+	float angle = acos(SpotDot);
+
+	if (angle < SpotLightAngle)
+	{
+		DiffuseSpot = SpotLightColour * max(dot(worldNormal.xyz, SpotToPixelVec), 0) / SpotToPixelDist;
+		halfway = normalize(SpotToPixelVec + CameraDir);
+		SpecularSpot = DiffuseSpot * pow(max(dot(worldNormal.xyz, halfway), 0), SpecularPower);
+	}
+	else if (angle < SpotLightAngle + 0.0523599f)
+	{
+		DiffuseSpot = SpotLightColour * max(dot(worldNormal.xyz, SpotToPixelVec), 0) / SpotToPixelDist / 5;
+		halfway = normalize(SpotToPixelVec + CameraDir);
+		SpecularSpot = DiffuseSpot * pow(max(dot(worldNormal.xyz, halfway), 0), SpecularPower);
+	}
+
 	// Sum the effect of the two lights - add the ambient at this stage rather than for each light (or we will get twice the ambient level)
-	float3 DiffuseLight = AmbientColour + DiffuseLight1 + DiffuseLight2 + DiffuseDir;
-	float3 SpecularLight = SpecularLight1 + SpecularLight2 + SpecularDir;
+	float3 DiffuseLight = AmbientColour + DiffuseLight1 + DiffuseLight2 + DiffuseDir + DiffuseSpot;
+	float3 SpecularLight = SpecularLight1 + SpecularLight2 + SpecularDir + SpecularSpot;
 
 
 	////////////////////

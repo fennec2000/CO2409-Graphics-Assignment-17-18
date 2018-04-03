@@ -39,6 +39,7 @@ extern ID3D10EffectVectorVariable* DirrectionalColourVar;
 extern ID3D10EffectVectorVariable* SpotLightPosVar;
 extern ID3D10EffectVectorVariable* SpotLightVecVar;
 extern ID3D10EffectVectorVariable* SpotLightColourVar;
+extern ID3D10EffectScalarVariable* SpotLightAngleVar;
 extern ID3D10EffectVectorVariable* SphereColourVar;
 extern ID3D10EffectVectorVariable* AmbientColourVar;
 extern ID3D10EffectVectorVariable* CameraPosVar;
