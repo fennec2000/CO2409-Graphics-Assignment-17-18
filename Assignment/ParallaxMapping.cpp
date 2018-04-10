@@ -145,6 +145,9 @@ bool InitScene()
 	Cube->  SetPosition( D3DXVECTOR3( 10, 15, -40) );
 	Teapot->SetPosition( D3DXVECTOR3( 40, 10,  10) );
 	Sphere->SetPosition( D3DXVECTOR3(  0, 20,  10) );
+	Troll-> SetScale( 10.0f );
+	Troll-> SetPosition( D3DXVECTOR3( 50, 0, 0) );
+	Troll-> SetRotation( D3DXVECTOR3( 0, ToRadians(180.0f), 0) );
 	Light1->SetPosition( D3DXVECTOR3( 30, 15, -40) );
 	Light1->SetScale( 5.0f );
 	Light2->SetPosition( D3DXVECTOR3( 20, 40, -20) );

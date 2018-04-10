@@ -32,6 +32,14 @@ struct VS_NORMALMAP_INPUT
 	float2 UV      : TEXCOORD0;
 };
 
+struct VS_LIGHTING_OUTPUT
+{
+	float4 ProjPos     : SV_POSITION;  // 2D "projected" position for vertex (required output for vertex shader)
+	float3 WorldPos    : POSITION;
+	float3 WorldNormal : NORMAL;
+	float2 UV          : TEXCOORD0;
+};
+
 
 // Like per-pixel lighting, normal mapping expects the vertex shader to pass over the position and normal.
 // However, it also expects the tangent (discussed below). Furthermore the normal and tangent are left in
@@ -74,6 +82,7 @@ float  SpecularPower;
 float3 CameraPos;
 float  Mover;
 float  Wiggle;
+float  SpotLightDimBoundry = 0.0523599f;
 
 // Variable used to tint each light model to show the colour that it emits
 float3 TintColour;
@@ -173,6 +182,28 @@ VS_NORMALMAP_OUTPUT NormalMapTransformSphere(VS_NORMALMAP_INPUT vIn)
 	return vOut;
 }
 
+VS_LIGHTING_OUTPUT VertexLightingTex(VS_BASIC_INPUT vIn)
+{
+	VS_LIGHTING_OUTPUT vOut;
+
+	// Use world matrix passed from C++ to transform the input model vertex position into world space
+	float4 modelPos = float4(vIn.Pos, 1.0f); // Promote to 1x4 so we can multiply by 4x4 matrix, put 1.0 in 4th element for a point (0.0 for a vector)
+	float4 worldPos = mul(modelPos, WorldMatrix);
+	vOut.WorldPos = worldPos.xyz;
+
+	// Use camera matrices to further transform the vertex from world space into view space (camera's point of view) and finally into 2D "projection" space for rendering
+	float4 viewPos = mul(worldPos, ViewMatrix);
+	vOut.ProjPos = mul(viewPos, ProjMatrix);
+
+	// Transform the vertex normal from model space into world space (almost same as first lines of code above)
+	float4 modelNormal = float4(vIn.Normal, 0.0f); // Set 4th element to 0.0 this time as normals are vectors
+	vOut.WorldNormal = mul(modelNormal, WorldMatrix).xyz;
+
+	// Pass texture coordinates (UVs) on to the pixel shader, the vertex shader doesn't need them
+	vOut.UV = vIn.UV;
+
+	return vOut;
+}
 
 // Basic vertex shader to transform 3D model vertices to 2D and pass UVs to the pixel shader
 //
@@ -187,29 +218,6 @@ VS_BASIC_OUTPUT BasicTransform( VS_BASIC_INPUT vIn )
 	vOut.ProjPos    = mul( viewPos,  ProjMatrix );
 	
 	// Pass texture coordinates (UVs) on to the pixel shader
-	vOut.UV = vIn.UV;
-
-	return vOut;
-}
-
-VS_NORMALMAP_OUTPUT VertexLightingTex(VS_BASIC_INPUT vIn)
-{
-	VS_NORMALMAP_OUTPUT vOut;
-
-	// Use world matrix passed from C++ to transform the input model vertex position into world space
-	float4 modelPos = float4(vIn.Pos, 1.0f); // Promote to 1x4 so we can multiply by 4x4 matrix, put 1.0 in 4th element for a point (0.0 for a vector)
-	float4 worldPos = mul(modelPos, WorldMatrix);
-	vOut.WorldPos = worldPos.xyz;
-
-	// Use camera matrices to further transform the vertex from world space into view space (camera's point of view) and finally into 2D "projection" space for rendering
-	float4 viewPos = mul(worldPos, ViewMatrix);
-	vOut.ProjPos = mul(viewPos, ProjMatrix);
-
-	// Transform the vertex normal from model space into world space (almost same as first lines of code above)
-	float4 modelNormal = float4(vIn.Normal, 0.0f); // Set 4th element to 0.0 this time as normals are vectors
-	vOut.ModelNormal = mul(modelNormal, WorldMatrix).xyz;
-
-	// Pass texture coordinates (UVs) on to the pixel shader, the vertex shader doesn't need them
 	vOut.UV = vIn.UV;
 
 	return vOut;
@@ -349,7 +357,7 @@ float4 NormalMapLighting( VS_NORMALMAP_OUTPUT vOut ) : SV_Target
 		halfway = normalize(SpotToPixelVec + CameraDir);
 		SpecularSpot = DiffuseSpot * pow(max(dot(worldNormal.xyz, halfway), 0), SpecularPower);
 	}
-	else if (angle < SpotLightAngle + 0.0523599f)
+	else if (angle < SpotLightAngle + SpotLightDimBoundry)
 	{
 		DiffuseSpot = SpotLightColour * max(dot(worldNormal.xyz, SpotToPixelVec), 0) / SpotToPixelDist / 5;
 		halfway = normalize(SpotToPixelVec + CameraDir);
@@ -510,7 +518,7 @@ float4 NormalMapLightingSphere(VS_NORMALMAP_OUTPUT vOut) : SV_Target
 	return combinedColour;
 }
 
-float4 VertexLitDiffuseMap(VS_NORMALMAP_OUTPUT vOut) : SV_Target  // The ": SV_Target" bit just indicates that the returned float4 colour goes to the render target (i.e. it's a colour to render)
+float4 VertexLitDiffuseMap(VS_LIGHTING_OUTPUT vOut) : SV_Target  // The ": SV_Target" bit just indicates that the returned float4 colour goes to the render target (i.e. it's a colour to render)
 {
 	// Can't guarantee the normals are length 1 now (because the world matrix may contain scaling), so renormalise
 	// If lighting in the pixel shader, this is also because the interpolation from vertex shader to pixel shader will also rescale normals
@@ -744,7 +752,7 @@ technique10 CellShading
 	}
 	pass P1
 	{
-		SetVertexShader(CompileShader(vs_4_0, NormalMapTransform()));
+		SetVertexShader(CompileShader(vs_4_0, VertexLightingTex()));
 		SetGeometryShader(NULL);
 		SetPixelShader(CompileShader(ps_4_0, VertexLitDiffuseMap()));
 
