@@ -51,6 +51,7 @@ extern ID3D10EffectScalarVariable* SpecularPowerVar;
 // Textures - variables used to send values from C++ to shader (fx file) variables
 extern ID3D10EffectShaderResourceVariable* DiffuseMapVar;
 extern ID3D10EffectShaderResourceVariable* NormalMapVar;
+extern ID3D10EffectShaderResourceVariable* ShadowMap1Var;
 
 // Miscellaneous variables to send values from C++ to shaders 
 extern ID3D10EffectScalarVariable* ParallaxDepthVar;
