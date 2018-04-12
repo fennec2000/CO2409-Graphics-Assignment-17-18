@@ -48,6 +48,44 @@ void Model::ReleaseResources()
 	mHasGeometry = false;
 }
 
+/////////////////////////////
+// Model facing
+
+// Added these functions for the shadow mapping lab - want spotlight models to face in a given directions
+
+// Get the direction the model is facing
+D3DXVECTOR3 Model::Facing()
+{
+	D3DXVECTOR3 facing;
+	D3DXVec3Normalize(&facing, &D3DXVECTOR3(&mWorldMatrix(2, 0)));
+	return facing;
+}
+
+// Make the model face a given point
+void Model::FacePoint(D3DXVECTOR3 point)
+{
+	using gen::CVector3;
+	using gen::CMatrix4x4;
+
+	// Want to set position and rotation so the model faces a given point. Needs a little maths.
+	// Using my own maths classes to do this (these classes are already used in the import .x file code)
+	// Can do a similar process with the D3DX functions, but it's less convenient
+	// Method: Quite easy to make a (world) matrix that faces a particular direction - just force the z-axis 
+	// that way and put the other axes at right angles. Then extract the position and rotations from that matrix
+	// Two function calls into the maths classes - have a look at these classes if you're interested
+	CMatrix4x4 facingMatrix = MatrixFaceTarget(CVector3(mPosition), CVector3(point));
+	facingMatrix.DecomposeAffineEuler((CVector3*)&mPosition, (CVector3*)&mRotation, 0);
+}
+
+// Make the model face a given direction (i.e. its z-axis will face in this direction) - almost same as above function
+void Model::FaceDirection(D3DXVECTOR3 dir)
+{
+	using gen::CVector3;
+	using gen::CMatrix4x4;
+
+	CMatrix4x4 facingMatrix = MatrixFaceDirection(CVector3(mPosition), CVector3(dir));
+	facingMatrix.DecomposeAffineEuler((CVector3*)&mPosition, (CVector3*)&mRotation, 0);
+}
 
 /////////////////////////////
 // Model Loading

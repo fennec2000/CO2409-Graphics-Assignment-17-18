@@ -602,6 +602,15 @@ float4 TintDiffuseMap( VS_BASIC_OUTPUT vOut ) : SV_Target
 	return diffuseMapColour;
 }
 
+// Shader used when rendering the shadow map depths. In fact a pixel shader isn't needed, we are
+// only writing to the depth buffer. However, needed to display what's in a shadow map (which we
+// do as one of the exercises).
+float4 PixelDepth(VS_BASIC_OUTPUT vOut) : SV_Target
+{
+	// Output the value that would go in the depth puffer to the pixel colour (greyscale)
+	return vOut.ProjPos.z / vOut.ProjPos.w;
+}
+
 
 //--------------------------------------------------------------------------------------
 // States
@@ -709,4 +718,20 @@ technique10 AdditiveTexTint
 		SetRasterizerState( CullNone ); 
 		SetDepthStencilState( DepthWritesOff, 0 );
      }
+}
+
+// Rendering a shadow map. Only outputs the depth of each pixel
+technique10 DepthOnly
+{
+	pass P0
+	{
+		SetVertexShader(CompileShader(vs_4_0, BasicTransform()));
+		SetGeometryShader(NULL);
+		SetPixelShader(CompileShader(ps_4_0, PixelDepth()));
+
+		// Switch off blending states
+		SetBlendState(NoBlending, float4(0.0f, 0.0f, 0.0f, 0.0f), 0xFFFFFFFF);
+		SetRasterizerState(CullBack);
+		SetDepthStencilState(DepthWritesOn, 0);
+	}
 }

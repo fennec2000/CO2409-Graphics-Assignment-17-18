@@ -32,6 +32,7 @@ ID3D10EffectMatrixVariable* WorldMatrixVar    = NULL;
 ID3D10EffectMatrixVariable* ViewMatrixVar     = NULL;
 ID3D10EffectMatrixVariable* ProjMatrixVar     = NULL;
 ID3D10EffectMatrixVariable* ViewProjMatrixVar = NULL;
+ID3D10EffectTechnique* DepthOnlyTechnique     = NULL;
 
 // Lights - variables used to send values from C++ to shader (fx file) variables
 // Unlike matrices, if whe have many lights we need many shader variables because
@@ -103,6 +104,7 @@ bool InitShaders()
 	ParallaxMappingTechniqueSphere = Effect->GetTechniqueByName("ParallaxMappingSphere");
 	VertexLitTexTechnique = Effect->GetTechniqueByName("VertexLitTex");
 	AdditiveTintTexTechnique = Effect->GetTechniqueByName("AdditiveTexTint");
+	DepthOnlyTechnique = Effect->GetTechniqueByName("DepthOnly");
 
 	// Create variables to allow us to access global variables in the shaders from C++
 	// First model and camera matrices
