@@ -29,6 +29,7 @@ float Wiggle;                       // wiggle value
 // The CModel class collects together geometry and world matrix, and provides functions to control the model and render it
 // The CCamera class handles the view and projections matrice, and provides functions to control the camera
 Model*  Cube;
+Model*  Cube2;
 Model*  Teapot;
 Model*  Floor;
 Model*  Sphere;
@@ -37,6 +38,7 @@ Camera* MainCamera;
 // Textures - including normal maps
 ID3D10ShaderResourceView* CubeDiffuseMap   = NULL;
 ID3D10ShaderResourceView* CubeNormalMap    = NULL;
+ID3D10ShaderResourceView* Cube2DiffuseMap  = NULL;
 ID3D10ShaderResourceView* TeapotDiffuseMap = NULL;
 ID3D10ShaderResourceView* TeapotNormalMap  = NULL;
 ID3D10ShaderResourceView* SphereDiffuseMap = NULL;
@@ -54,6 +56,7 @@ D3DXVECTOR3 AmbientColour = D3DXVECTOR3( 0.2f, 0.2f, 0.3f );
 D3DXVECTOR3 Light1Colour  = D3DXVECTOR3( 0.8f, 0.8f, 1.0f );
 D3DXVECTOR3 Light2Colour  = D3DXVECTOR3( 1.0f, 0.8f, 0.2f ) * 30;
 D3DXVECTOR3 Light2ColourDefault = Light2Colour;
+D3DXVECTOR3 Light3Colour = D3DXVECTOR3(0.8f, 0.8f, 1.0f) * 20;
 D3DXVECTOR3 DirrectionalColour = D3DXVECTOR3(0, 0, 1.0f) * 0.1f;
 D3DXVECTOR3 DirrectionalVec = D3DXVECTOR3(0, 1, 0);
 D3DXVECTOR3 SpotLightColour = D3DXVECTOR3(1, 1, 1) * 50;
@@ -73,6 +76,7 @@ float Light1Power = 20.0f;
 // Display models where the lights are. One of the lights will follow an orbit
 Model* Light1;
 Model* Light2;
+Model* Light3;
 Model* SpotLight;
 const float LightOrbitRadius = 20.0f;
 const float LightOrbitSpeed  = 0.7f;
@@ -103,11 +107,13 @@ bool InitScene()
 	// Load/Create models
 
 	Cube      = new Model;
+	Cube2     = new Model;
 	Teapot    = new Model;
 	Sphere    = new Model;
 	Floor     = new Model;
 	Light1    = new Model;
 	Light2    = new Model;
+	Light3    = new Model;
 	SpotLight = new Model;
 
 	// Load the model's geometry from ".X" files
@@ -120,11 +126,13 @@ bool InitScene()
 	//
 	bool success = true;
 	if (!Cube->     Load( "Cube.x",   ParallaxMappingTechnique,        true ))  success = false;
+	if (!Cube2->    Load( "Cube.x",   VertexLitTexTechnique,           true ))  success = false;
 	if (!Teapot->   Load( "Teapot.x", ParallaxMappingTechnique,        true ))  success = false;
 	if (!Sphere->   Load( "Sphere.x", ParallaxMappingTechniqueSphere,  true ))  success = false;
 	if (!Floor->    Load( "Hills.x",  ParallaxMappingTechnique,        true ))  success = false;
 	if (!Light1->   Load( "Light.x",  AdditiveTintTexTechnique              ))  success = false;
 	if (!Light2->   Load( "Light.x",  AdditiveTintTexTechnique              ))  success = false;
+	if (!Light3->   Load( "Light.x",  AdditiveTintTexTechnique              ))  success = false;
 	if (!SpotLight->Load( "Light.x",  AdditiveTintTexTechnique              ))  success = false;
 	if (!success)
 	{
@@ -134,12 +142,15 @@ bool InitScene()
 
 	// Initial model positions
 	Cube->  SetPosition( D3DXVECTOR3( 10, 15, -40) );
+	Cube2-> SetPosition( D3DXVECTOR3( 10, 15, -80));
 	Teapot->SetPosition( D3DXVECTOR3( 40, 10,  10) );
 	Sphere->SetPosition( D3DXVECTOR3(  0, 20,  10) );
 	Light1->SetPosition( D3DXVECTOR3( 30, 15, -40) );
 	Light1->SetScale( 5.0f );
 	Light2->SetPosition( D3DXVECTOR3( 20, 40, -20) );
 	Light2->SetScale( 12.0f );
+	Light3->SetPosition(D3DXVECTOR3(30, 15, -80));
+	Light3->SetScale(5.0f);
 	SpotLight->SetPosition( D3DXVECTOR3(60, 20, -60));
 	SpotLight->SetScale( 12.0f );
 
@@ -162,6 +173,7 @@ bool InitScene()
 	//*******************************************************************************************************//
 	if (FAILED( D3DX10CreateShaderResourceViewFromFile( Device, L"TechDiffuseSpecular.dds",    NULL, NULL, &CubeDiffuseMap,   NULL ) ))  success = false;
 	if (FAILED( D3DX10CreateShaderResourceViewFromFile( Device, L"TechNormalDepth.dds",        NULL, NULL, &CubeNormalMap,    NULL ) ))  success = false;
+	if (FAILED( D3DX10CreateShaderResourceViewFromFile( Device, L"StoneDiffuseSpecular.dds",   NULL, NULL, &Cube2DiffuseMap,  NULL ) ))  success = false;
 	if (FAILED( D3DX10CreateShaderResourceViewFromFile( Device, L"PatternDiffuseSpecular.dds", NULL, NULL, &TeapotDiffuseMap, NULL ) ))  success = false;
 	if (FAILED( D3DX10CreateShaderResourceViewFromFile( Device, L"PatternNormalDepth.dds",     NULL, NULL, &TeapotNormalMap,  NULL ) ))  success = false;
 	if (FAILED( D3DX10CreateShaderResourceViewFromFile( Device, L"BrainDiffuseSpecular.dds",   NULL, NULL, &SphereDiffuseMap, NULL ) ))  success = false;
@@ -185,10 +197,12 @@ bool InitScene()
 void ReleaseScene()
 {
 	delete SpotLight;  SpotLight = NULL;
+	delete Light3;     Light3 = NULL;
 	delete Light2;     Light2 = NULL;
 	delete Light1;     Light1 = NULL;
 	delete Floor;      Floor = NULL;
 	delete Teapot;     Teapot = NULL;
+	delete Cube2;      Cube2 = NULL;
 	delete Cube;       Cube = NULL;
 	delete MainCamera; MainCamera = NULL;
 
@@ -199,6 +213,7 @@ void ReleaseScene()
     if (TeapotDiffuseMap) TeapotDiffuseMap->Release();
 	if (SphereNormalMap)  SphereNormalMap->Release();
 	if (SphereDiffuseMap) SphereDiffuseMap->Release();
+	if (Cube2DiffuseMap)  Cube2DiffuseMap->Release();
     if (CubeNormalMap)    CubeNormalMap->Release();
     if (CubeDiffuseMap)   CubeDiffuseMap->Release();
 }
@@ -219,7 +234,9 @@ void UpdateScene( float frameTime )
 
 	// Update the orbiting light - a bit of a cheat with the static variable [ask the tutor if you want to know what this is]
 	static float Rotate = 0.0f;
-	Light1->SetPosition( Cube->Position() + D3DXVECTOR3(cos(Rotate)*LightOrbitRadius, 0, sin(Rotate)*LightOrbitRadius) );
+	D3DXVECTOR3 circle = D3DXVECTOR3(cos(Rotate)*LightOrbitRadius, 0, sin(Rotate)*LightOrbitRadius);
+	Light1->SetPosition( Cube->Position() + circle);
+	Light3->SetPosition( Cube2->Position() + circle);
 	Rotate -= LightOrbitSpeed * frameTime;
 
 	// lighting
@@ -273,6 +290,8 @@ void RenderScene()
 	Light1ColourVar->      SetRawValue( Light1Colour, 0, 12 );
 	Light2PosVar->         SetRawValue( Light2->Position(), 0, 12 );
 	Light2ColourVar->      SetRawValue( Light2Colour, 0, 12 );
+	Light3PosVar->         SetRawValue( Light3->Position(), 0, 12);
+	Light3ColourVar->      SetRawValue( Light3Colour, 0, 12);
 	DirrectionalVecVar->   SetRawValue( DirrectionalVec, 0, 12);
 	DirrectionalColourVar->SetRawValue( DirrectionalColour, 0, 12);
 	SpotLightPosVar->      SetRawValue( SpotLight->Position(), 0, 12);
@@ -301,6 +320,10 @@ void RenderScene()
 	Cube->Render( ParallaxMappingTechnique );                 // Pass rendering technique to the model class
 
 	// Same for the other models in the scene
+	WorldMatrixVar->SetMatrix((float*)Cube2->WorldMatrix());
+	DiffuseMapVar->SetResource(Cube2DiffuseMap);
+	Cube2->Render(VertexLitTexTechnique);
+
 	WorldMatrixVar->SetMatrix( (float*)Teapot->WorldMatrix() );
     DiffuseMapVar->SetResource( TeapotDiffuseMap );
     NormalMapVar->SetResource( TeapotNormalMap );
@@ -326,6 +349,11 @@ void RenderScene()
 	DiffuseMapVar->SetResource( LightDiffuseMap );
 	TintColourVar->SetRawValue(Light2Colour, 0, 12 );
 	Light2->Render( AdditiveTintTexTechnique );
+
+	WorldMatrixVar->SetMatrix((float*)Light3->WorldMatrix());
+	DiffuseMapVar->SetResource(LightDiffuseMap);
+	TintColourVar->SetRawValue(Light3Colour, 0, 12);
+	Light3->Render(AdditiveTintTexTechnique);
 
 	WorldMatrixVar->SetMatrix( (float*)SpotLight->WorldMatrix() );
 	DiffuseMapVar->SetResource( LightDiffuseMap );

@@ -22,6 +22,7 @@ ID3D10Effect* Effect = NULL;
 // Variable for each technique used from the .fx file (found at the end of the .fx file)
 ID3D10EffectTechnique* ParallaxMappingTechnique   = NULL;
 ID3D10EffectTechnique* ParallaxMappingTechniqueSphere = NULL;
+ID3D10EffectTechnique* VertexLitTexTechnique = NULL;
 ID3D10EffectTechnique* AdditiveTintTexTechnique = NULL;
 
 // Matrices - variables used to send values from C++ to shader (fx file) variables
@@ -35,20 +36,22 @@ ID3D10EffectMatrixVariable* ViewProjMatrixVar = NULL;
 // Lights - variables used to send values from C++ to shader (fx file) variables
 // Unlike matrices, if whe have many lights we need many shader variables because
 // a single model can be affected by many lights
-ID3D10EffectVectorVariable* Light1PosVar     = NULL;
-ID3D10EffectVectorVariable* Light1ColourVar  = NULL;
-ID3D10EffectVectorVariable* Light2PosVar     = NULL;
-ID3D10EffectVectorVariable* Light2ColourVar  = NULL;
-ID3D10EffectVectorVariable* DirrectionalVecVar = NULL;
+ID3D10EffectVectorVariable* Light1PosVar          = NULL;
+ID3D10EffectVectorVariable* Light1ColourVar       = NULL;
+ID3D10EffectVectorVariable* Light2PosVar          = NULL;
+ID3D10EffectVectorVariable* Light2ColourVar       = NULL;
+ID3D10EffectVectorVariable* Light3PosVar          = NULL;
+ID3D10EffectVectorVariable* Light3ColourVar       = NULL;
+ID3D10EffectVectorVariable* DirrectionalVecVar    = NULL;
 ID3D10EffectVectorVariable* DirrectionalColourVar = NULL;
-ID3D10EffectVectorVariable* SpotLightPosVar = NULL;
-ID3D10EffectVectorVariable* SpotLightVecVar = NULL;
-ID3D10EffectVectorVariable* SpotLightColourVar = NULL;
-ID3D10EffectScalarVariable* SpotLightAngleVar = NULL;
-ID3D10EffectVectorVariable* SphereColourVar  = NULL;
-ID3D10EffectVectorVariable* AmbientColourVar = NULL;
-ID3D10EffectVectorVariable* CameraPosVar     = NULL; // Camera position used for specular light
-ID3D10EffectScalarVariable* SpecularPowerVar = NULL;
+ID3D10EffectVectorVariable* SpotLightPosVar       = NULL;
+ID3D10EffectVectorVariable* SpotLightVecVar       = NULL;
+ID3D10EffectVectorVariable* SpotLightColourVar    = NULL;
+ID3D10EffectScalarVariable* SpotLightAngleVar     = NULL;
+ID3D10EffectVectorVariable* SphereColourVar       = NULL;
+ID3D10EffectVectorVariable* AmbientColourVar      = NULL;
+ID3D10EffectVectorVariable* CameraPosVar          = NULL; // Camera position used for specular light
+ID3D10EffectScalarVariable* SpecularPowerVar      = NULL;
 
 // Textures - two textures in the pixel shader now - diffuse/specular map and normal/depth map
 ID3D10EffectShaderResourceVariable* DiffuseMapVar = NULL;
@@ -98,6 +101,7 @@ bool InitShaders()
 	// Now we can select techniques from the compiled effect file
 	ParallaxMappingTechnique = Effect->GetTechniqueByName("ParallaxMapping");
 	ParallaxMappingTechniqueSphere = Effect->GetTechniqueByName("ParallaxMappingSphere");
+	VertexLitTexTechnique = Effect->GetTechniqueByName("VertexLitTex");
 	AdditiveTintTexTechnique = Effect->GetTechniqueByName("AdditiveTexTint");
 
 	// Create variables to allow us to access global variables in the shaders from C++
@@ -112,6 +116,8 @@ bool InitShaders()
 	Light1ColourVar       = Effect->GetVariableByName("Light1Colour"      )->AsVector();
 	Light2PosVar          = Effect->GetVariableByName("Light2Pos"         )->AsVector();
 	Light2ColourVar       = Effect->GetVariableByName("Light2Colour"      )->AsVector();
+	Light3PosVar          = Effect->GetVariableByName("Light3Pos"         )->AsVector();
+	Light3ColourVar       = Effect->GetVariableByName("Light3Colour"      )->AsVector();
 	DirrectionalVecVar    = Effect->GetVariableByName("DirrectionalVec"   )->AsVector();
 	DirrectionalColourVar = Effect->GetVariableByName("DirrectionalColour")->AsVector();
 	SpotLightPosVar       = Effect->GetVariableByName("SpotLightPos"      )->AsVector();
