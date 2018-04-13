@@ -11,7 +11,7 @@
 #include "Colour\ColourConversions.h"  // my hsl and rbs conversions
 
 enum ELightType { point, directional, spot };
-enum EID3D10EffectTechnique { Parallax, VertexLit, AdditiveTintTex };
+enum EID3D10EffectTechnique { Parallax, VertexLit, AdditiveTintTex, VertexAdditive };
 
 struct Light {
 	ELightType type;
@@ -59,12 +59,12 @@ float WigglePower = 0.1f;    // power of the wiggle effect
 // The CCamera class handles the view and projections matrice, and provides functions to control the camera
 const int MODEL_COUNT = 6;
 SModel ModelArr[MODEL_COUNT] = {
-	{ "Cube.x",   Parallax,  true,  L"TechDiffuseSpecular.dds",    L"TechNormalDepth.dds",    D3DXVECTOR3(0,0,0),                    false, NULL, NULL },
-	{ "Cube.x",   Parallax,  true,  L"StoneDiffuseSpecular.dds",   L"",                       D3DXVECTOR3(0,0,0),                    false, NULL, NULL },
-	{ "Decal.x",  VertexLit, false, L"Moogle.png",                 L"",                       D3DXVECTOR3(0,0,0),                    false, NULL, NULL },
-	{ "Teapot.x", Parallax,  true,  L"PatternDiffuseSpecular.dds", L"PatternNormalDepth.dds", D3DXVECTOR3(0,0,0),                    false, NULL, NULL },
-	{ "Sphere.x", Parallax,  true,  L"BrainDiffuseSpecular.dds",   L"BrainNormalDepth.dds",   D3DXVECTOR3(1.0f, 0.41f, 0.7f) * 0.3f, true,  NULL, NULL },
-	{ "Hills.x",  Parallax,  true,  L"CobbleDiffuseSpecular.dds",  L"CobbleNormalDepth.dds",  D3DXVECTOR3(0,0,0),                    false, NULL, NULL },
+	{ "Cube.x",   Parallax,       true,  L"TechDiffuseSpecular.dds",    L"TechNormalDepth.dds",    D3DXVECTOR3(),                         false, NULL, NULL },
+	{ "Cube.x",   VertexLit,      true,  L"StoneDiffuseSpecular.dds",    L"",                      D3DXVECTOR3(),                         false, NULL, NULL },
+	{ "Decal.x",  VertexAdditive, false, L"Moogle.png",                 L"",                       D3DXVECTOR3(1,1,1) * 10,               false, NULL, NULL },
+	{ "Teapot.x", Parallax,       true,  L"PatternDiffuseSpecular.dds", L"PatternNormalDepth.dds", D3DXVECTOR3(),                         false, NULL, NULL },
+	{ "Sphere.x", Parallax,       true,  L"BrainDiffuseSpecular.dds",   L"BrainNormalDepth.dds",   D3DXVECTOR3(1.0f, 0.41f, 0.7f) * 0.3f, true,  NULL, NULL },
+	{ "Hills.x",  Parallax,       true,  L"CobbleDiffuseSpecular.dds",  L"CobbleNormalDepth.dds",  D3DXVECTOR3(),                         false, NULL, NULL },
 };
 
 Camera* MainCamera;
@@ -171,7 +171,7 @@ bool InitScene()
 	{
 		if (ModelArr[i].Etechnique == Parallax)
 			ModelArr[i].technique = ParallaxMappingTechnique;
-		else if (ModelArr[i].Etechnique == VertexLit)
+		else if (ModelArr[i].Etechnique == VertexLit || ModelArr[i].Etechnique == VertexAdditive)
 			ModelArr[i].technique = VertexLitTexTechnique;
 		else if (ModelArr[i].Etechnique == AdditiveTintTex)
 			ModelArr[i].technique = AdditiveTintTexTechnique;
@@ -179,6 +179,8 @@ bool InitScene()
 		ModelArr[i].model = new Model;
 		if (!ModelArr[i].model->Load(ModelArr[i].fileName, ModelArr[i].technique, ModelArr[i].tangents))  success = false;
 
+		if (ModelArr[i].Etechnique == VertexAdditive)
+			ModelArr[i].technique = AdditiveTintTexTechnique;
 	}
 	if (!Portal->   Load( "Portal.x", VertexLitTexTechnique                 ))  success = false;
 	if (!success)
@@ -202,7 +204,7 @@ bool InitScene()
 	// Initial model positions
 	ModelArr[0].model->SetPosition( D3DXVECTOR3( 10, 15, -40) );
 	ModelArr[1].model->SetPosition( D3DXVECTOR3( 10, 15, -80) );
-	ModelArr[2].model->SetPosition(ModelArr[2].model->Position() + D3DXVECTOR3(0, 0, -0.1f));
+	ModelArr[2].model->SetPosition(ModelArr[1].model->Position() + D3DXVECTOR3(0, 0, -0.1f));
 	ModelArr[3].model->SetPosition( D3DXVECTOR3( 40, 10,  10) );
 	ModelArr[4].model->SetPosition( D3DXVECTOR3(  0, 20,  10) );
 
