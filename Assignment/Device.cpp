@@ -19,7 +19,7 @@ ID3D10Device* Device = NULL;
 IDXGISwapChain*         SwapChain = NULL;
 ID3D10Texture2D*        DepthStencil = NULL;
 ID3D10DepthStencilView* DepthStencilView = NULL;
-ID3D10RenderTargetView* RenderTargetView = NULL;
+ID3D10RenderTargetView* BackBufferRenderTarget = NULL;
 
 // Width and height of the window viewport
 unsigned int ViewportWidth;
@@ -58,9 +58,10 @@ bool InitDevice(HWND hWnd)
 	sd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
 	sd.SampleDesc.Count = 1;
 	sd.SampleDesc.Quality = 0;
-	sd.OutputWindow = hWnd;                            // Target window
-	sd.Windowed = TRUE;                                // Whether to render in a window (TRUE) or go fullscreen (FALSE)
-	hr = D3D10CreateDeviceAndSwapChain(NULL, D3D10_DRIVER_TYPE_HARDWARE, NULL, D3D10_CREATE_DEVICE_DEBUG,
+	sd.OutputWindow = hWnd;    // Target window
+	sd.Windowed = TRUE;        // Whether to render in a window (TRUE) or go fullscreen (FALSE)
+	UINT flags = 0;            // May optionally set flags to D3D10_CREATE_DEVICE_DEBUG for extra debug information
+	hr = D3D10CreateDeviceAndSwapChain(NULL, D3D10_DRIVER_TYPE_HARDWARE, NULL, flags,
 		D3D10_SDK_VERSION, &sd, &SwapChain, &Device);
 	if (FAILED(hr)) return false;
 
@@ -69,14 +70,14 @@ bool InitDevice(HWND hWnd)
 	ID3D10Texture2D* pBackBuffer;
 	hr = SwapChain->GetBuffer(0, __uuidof(ID3D10Texture2D), (LPVOID*)&pBackBuffer);
 	if (FAILED(hr)) return false;
-	hr = Device->CreateRenderTargetView(pBackBuffer, NULL, &RenderTargetView);
+	hr = Device->CreateRenderTargetView(pBackBuffer, NULL, &BackBufferRenderTarget);
 	pBackBuffer->Release();
 	if (FAILED(hr)) return false;
 
 
 	// Create a texture (bitmap) to use for a depth buffer
 	D3D10_TEXTURE2D_DESC descDepth;
-	descDepth.Width  = ViewportWidth;
+	descDepth.Width = ViewportWidth;
 	descDepth.Height = ViewportHeight;
 	descDepth.MipLevels = 1;
 	descDepth.ArraySize = 1;
@@ -99,18 +100,7 @@ bool InitDevice(HWND hWnd)
 	if (FAILED(hr)) return false;
 
 	// Select the back buffer and depth buffer to use for rendering now
-	Device->OMSetRenderTargets(1, &RenderTargetView, DepthStencilView);
-
-
-	// Setup the viewport - defines which part of the window we will render to, almost always the whole window
-	D3D10_VIEWPORT vp;
-	vp.Width = ViewportWidth;
-	vp.Height = ViewportHeight;
-	vp.MinDepth = 0.0f;
-	vp.MaxDepth = 1.0f;
-	vp.TopLeftX = 0;
-	vp.TopLeftY = 0;
-	Device->RSSetViewports(1, &vp);
+	Device->OMSetRenderTargets(1, &BackBufferRenderTarget, DepthStencilView);
 
 	return true;
 }
@@ -122,11 +112,11 @@ bool InitDevice(HWND hWnd)
 void ReleaseDevice()
 {
 	if (Device)  Device->ClearState(); // Resets Direct3D internal state to normal
-	
-	if (DepthStencilView)  DepthStencilView->Release();
-	if (RenderTargetView)  RenderTargetView->Release();
-	if (DepthStencil)      DepthStencil->Release();
-	if (SwapChain)         SwapChain->Release();
-	if (Device)            Device->Release();
+
+	if (DepthStencilView)        DepthStencilView->Release();
+	if (BackBufferRenderTarget)  BackBufferRenderTarget->Release();
+	if (DepthStencil)            DepthStencil->Release();
+	if (SwapChain)               SwapChain->Release();
+	if (Device)                  Device->Release();
 }
 

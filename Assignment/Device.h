@@ -22,7 +22,7 @@ extern ID3D10Device* Device;
 extern IDXGISwapChain*         SwapChain;
 extern ID3D10Texture2D*        DepthStencil;
 extern ID3D10DepthStencilView* DepthStencilView;
-extern ID3D10RenderTargetView* RenderTargetView;
+extern ID3D10RenderTargetView* BackBufferRenderTarget;
 
 // Width and height of the window viewport
 extern unsigned int ViewportWidth;
