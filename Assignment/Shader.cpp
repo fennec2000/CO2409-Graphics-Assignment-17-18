@@ -46,7 +46,6 @@ ID3D10EffectVectorVariable* SpotLightPosVar = NULL;
 ID3D10EffectVectorVariable* SpotLightVecVar = NULL;
 ID3D10EffectVectorVariable* SpotLightColourVar = NULL;
 ID3D10EffectScalarVariable* SpotLightAngleVar = NULL;
-ID3D10EffectVectorVariable* SphereColourVar  = NULL;
 ID3D10EffectVectorVariable* AmbientColourVar = NULL;
 ID3D10EffectVectorVariable* CameraPosVar     = NULL; // Camera position used for specular light
 ID3D10EffectScalarVariable* SpecularPowerVar = NULL;
@@ -62,6 +61,7 @@ ID3D10EffectVectorVariable* TintColourVar    = NULL; // For tinting the light mo
 // Effects
 ID3D10EffectScalarVariable* MoverVar         = NULL;
 ID3D10EffectScalarVariable* WiggleVar        = NULL;
+ID3D10EffectScalarVariable* WigglePowerVar   = NULL;
 
 
 //--------------------------------------------------------------------------------------
@@ -98,7 +98,6 @@ bool InitShaders()
 
 	// Now we can select techniques from the compiled effect file
 	ParallaxMappingTechnique = Effect->GetTechniqueByName("ParallaxMapping");
-	ParallaxMappingTechniqueSphere = Effect->GetTechniqueByName("ParallaxMappingSphere");
 	AdditiveTintTexTechnique = Effect->GetTechniqueByName("AdditiveTexTint");
 	VertexLitTexTechnique = Effect->GetTechniqueByName("VertexLitTex");
 
@@ -120,7 +119,6 @@ bool InitShaders()
 	SpotLightVecVar       = Effect->GetVariableByName("SpotLightVec"      )->AsVector();
 	SpotLightColourVar    = Effect->GetVariableByName("SpotLightColour"   )->AsVector();
 	SpotLightAngleVar     = Effect->GetVariableByName("SpotLightAngle"    )->AsScalar();
-	SphereColourVar       = Effect->GetVariableByName("SphereColour"      )->AsVector();
 	AmbientColourVar      = Effect->GetVariableByName("AmbientColour"     )->AsVector();
 	CameraPosVar          = Effect->GetVariableByName("CameraPos"         )->AsVector();
 	SpecularPowerVar      = Effect->GetVariableByName("SpecularPower"     )->AsScalar();
@@ -137,6 +135,7 @@ bool InitShaders()
 	// Effects
 	MoverVar         = Effect->GetVariableByName("Mover"          )->AsScalar();
 	WiggleVar        = Effect->GetVariableByName("Wiggle"         )->AsScalar();
+	WigglePowerVar   = Effect->GetVariableByName("WigglePower"    )->AsScalar();
 
 	return true;
 }

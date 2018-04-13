@@ -11,12 +11,27 @@
 #include "Colour\ColourConversions.h"  // my hsl and rbs conversions
 
 enum ELightType { point, directional, spot };
+enum EID3D10EffectTechnique { Parallax, VertexLit, AdditiveTintTex };
 
 struct Light {
 	ELightType type;
 	D3DXVECTOR3 colour;
 	float power;
 	D3DXVECTOR3 vector;
+	Model* model;
+};
+
+struct SModel {
+	string fileName;
+	EID3D10EffectTechnique Etechnique;
+	bool tangents;
+	LPCWSTR DiffuseMapName;
+	LPCWSTR NormalMapName;
+	D3DXVECTOR3 tintColour;
+	bool effectsAlways;
+	ID3D10ShaderResourceView* DiffuseMap;
+	ID3D10ShaderResourceView* NormalMap;
+	ID3D10EffectTechnique* technique;
 	Model* model;
 };
 
@@ -31,18 +46,27 @@ const float kScaleSpeed    = 2.0f;  // 2x or 1/2x scaling each second - this is 
 float Pulse;                        // pulsating light value
 float Mover;                        // mover value
 float Wiggle;                       // wiggle value
+bool UseMover = false; // invert mover on object
+bool UseWiggle = false; // invert wiggle on object
+const float WIGGLE_POWER_DEFAULT = 0.1f;
+const float WIGGLE_POWER_RATE = 0.001f;
+float WigglePower = 0.1f;    // power of the wiggle effect
 
 //-------------------------------------
 
 // Models and cameras. Now encapsulated in classes for flexibity and convenience
 // The CModel class collects together geometry and world matrix, and provides functions to control the model and render it
 // The CCamera class handles the view and projections matrice, and provides functions to control the camera
-Model*  Cube;
-Model*  Cube2;
-Model*  Decal;
-Model*  Teapot;
-Model*  Floor;
-Model*  Sphere;
+const int MODEL_COUNT = 6;
+SModel ModelArr[MODEL_COUNT] = {
+	{ "Cube.x",   Parallax,  true,  L"TechDiffuseSpecular.dds",    L"TechNormalDepth.dds",    D3DXVECTOR3(0,0,0),                    false, NULL, NULL },
+	{ "Cube.x",   Parallax,  true,  L"StoneDiffuseSpecular.dds",   L"",                       D3DXVECTOR3(0,0,0),                    false, NULL, NULL },
+	{ "Decal.x",  VertexLit, false, L"Moogle.png",                 L"",                       D3DXVECTOR3(0,0,0),                    false, NULL, NULL },
+	{ "Teapot.x", Parallax,  true,  L"PatternDiffuseSpecular.dds", L"PatternNormalDepth.dds", D3DXVECTOR3(0,0,0),                    false, NULL, NULL },
+	{ "Sphere.x", Parallax,  true,  L"BrainDiffuseSpecular.dds",   L"BrainNormalDepth.dds",   D3DXVECTOR3(1.0f, 0.41f, 0.7f) * 0.3f, true,  NULL, NULL },
+	{ "Hills.x",  Parallax,  true,  L"CobbleDiffuseSpecular.dds",  L"CobbleNormalDepth.dds",  D3DXVECTOR3(0,0,0),                    false, NULL, NULL },
+};
+
 Camera* MainCamera;
 
 //**** Portal Data ****//
@@ -70,16 +94,7 @@ ID3D10DepthStencilView* PortalDepthStencilView = NULL;
 //*********************//
 
 // Textures - including normal maps
-ID3D10ShaderResourceView* CubeDiffuseMap   = NULL;
-ID3D10ShaderResourceView* CubeNormalMap    = NULL;
-ID3D10ShaderResourceView* Cube2DiffuseMap  = NULL;
-ID3D10ShaderResourceView* DecalDiffuseMap  = NULL;
-ID3D10ShaderResourceView* TeapotDiffuseMap = NULL;
-ID3D10ShaderResourceView* TeapotNormalMap  = NULL;
-ID3D10ShaderResourceView* SphereDiffuseMap = NULL;
-ID3D10ShaderResourceView* SphereNormalMap  = NULL;
-ID3D10ShaderResourceView* FloorDiffuseMap  = NULL;
-ID3D10ShaderResourceView* FloorNormalMap   = NULL;
+
 ID3D10ShaderResourceView* LightDiffuseMap  = NULL;
 float ParallaxDepth = 0.08f; // Overall depth of bumpiness for parallax mapping
 bool UseParallax    = true;  // Toggle for parallax 
@@ -98,11 +113,9 @@ Light LightArr[LIGHT_COUNT] = {
 	{ spot, D3DXVECTOR3(1, 1, 1), 50, D3DXVECTOR3(0, 0.707107f, -0.707107f) }
 };
 
-D3DXVECTOR3 RainbowColourDefault = LightArr[1].colour;
+D3DXVECTOR3 PulseDefault = LightArr[1].colour;
 
 float SpotLightAngle = 0.52f; // aprox 30 degrees - 29.79381
-
-D3DXVECTOR3 SphereColour  = D3DXVECTOR3(1.0f, 0.41f, 0.7f) * 0.3f;
 float SpecularPower = 256.0f;
 
 // Light 1 colour to HSL
@@ -143,12 +156,6 @@ bool InitScene()
 	//---------------------------
 	// Load/Create models
 
-	Cube      = new Model;
-	Cube2     = new Model;
-	Decal     = new Model;
-	Teapot    = new Model;
-	Sphere    = new Model;
-	Floor     = new Model;
 	Portal    = new Model;
 
 	// Load the model's geometry from ".X" files
@@ -160,12 +167,19 @@ bool InitScene()
 	// process is done in the import code, but the detail is beyond the scope of this lab exercise
 	//
 	bool success = true;
-	if (!Cube->     Load( "Cube.x",   ParallaxMappingTechnique,        true ))  success = false;
-	if (!Cube2->    Load( "Cube.x",   VertexLitTexTechnique,           true ))  success = false;
-	if (!Decal->    Load( "Decal.x",  VertexLitTexTechnique                 ))  success = false;
-	if (!Teapot->   Load( "Teapot.x", ParallaxMappingTechnique,        true ))  success = false;
-	if (!Sphere->   Load( "Sphere.x", ParallaxMappingTechniqueSphere,  true ))  success = false;
-	if (!Floor->    Load( "Hills.x",  ParallaxMappingTechnique,        true ))  success = false;
+	for (int i = 0; i < MODEL_COUNT; i++)
+	{
+		if (ModelArr[i].Etechnique == Parallax)
+			ModelArr[i].technique = ParallaxMappingTechnique;
+		else if (ModelArr[i].Etechnique == VertexLit)
+			ModelArr[i].technique = VertexLitTexTechnique;
+		else if (ModelArr[i].Etechnique == AdditiveTintTex)
+			ModelArr[i].technique = AdditiveTintTexTechnique;
+
+		ModelArr[i].model = new Model;
+		if (!ModelArr[i].model->Load(ModelArr[i].fileName, ModelArr[i].technique, ModelArr[i].tangents))  success = false;
+
+	}
 	if (!Portal->   Load( "Portal.x", VertexLitTexTechnique                 ))  success = false;
 	if (!success)
 	{
@@ -186,16 +200,16 @@ bool InitScene()
 	}
 
 	// Initial model positions
-	Cube->  SetPosition( D3DXVECTOR3( 10, 15, -40) );
-	Cube2-> SetPosition( D3DXVECTOR3( 10, 15, -80) );
-	Decal-> SetPosition( Cube2->Position() + D3DXVECTOR3(0, 0, -0.1f));
-	Teapot->SetPosition( D3DXVECTOR3( 40, 10,  10) );
-	Sphere->SetPosition( D3DXVECTOR3(  0, 20,  10) );
+	ModelArr[0].model->SetPosition( D3DXVECTOR3( 10, 15, -40) );
+	ModelArr[1].model->SetPosition( D3DXVECTOR3( 10, 15, -80) );
+	ModelArr[2].model->SetPosition(ModelArr[2].model->Position() + D3DXVECTOR3(0, 0, -0.1f));
+	ModelArr[3].model->SetPosition( D3DXVECTOR3( 40, 10,  10) );
+	ModelArr[4].model->SetPosition( D3DXVECTOR3(  0, 20,  10) );
 
 	LightArr[0].model->SetPosition( D3DXVECTOR3( 30, 15, -40) );
 	LightArr[0].model->SetScale( 5.0f );
 	LightArr[1].model->SetPosition( D3DXVECTOR3( 20, 40, -20) );
-	LightArr[2].model->SetScale( 12.0f );
+	LightArr[1].model->SetScale( 12.0f );
 	LightArr[3].model->SetPosition( D3DXVECTOR3(60, 20, -60));
 	LightArr[3].model->SetScale( 12.0f );
 
@@ -219,16 +233,13 @@ bool InitScene()
 	// the flat plane of the surface geometry. This depth is held in the alpha channel of the normal map (in
 	// a similar way that the specular map is held in the alpha channel of the diffuse map)
 	//*******************************************************************************************************//
-	if (FAILED( D3DX10CreateShaderResourceViewFromFile( Device, L"TechDiffuseSpecular.dds",    NULL, NULL, &CubeDiffuseMap,   NULL ) ))  success = false;
-	if (FAILED( D3DX10CreateShaderResourceViewFromFile( Device, L"TechNormalDepth.dds",        NULL, NULL, &CubeNormalMap,    NULL ) ))  success = false;
-	if (FAILED( D3DX10CreateShaderResourceViewFromFile( Device, L"StoneDiffuseSpecular.dds",   NULL, NULL, &Cube2DiffuseMap,  NULL ) ))  success = false;
-	if (FAILED( D3DX10CreateShaderResourceViewFromFile( Device, L"Moogle.png",                 NULL, NULL, &DecalDiffuseMap,  NULL ) ))  success = false;
-	if (FAILED( D3DX10CreateShaderResourceViewFromFile( Device, L"PatternDiffuseSpecular.dds", NULL, NULL, &TeapotDiffuseMap, NULL ) ))  success = false;
-	if (FAILED( D3DX10CreateShaderResourceViewFromFile( Device, L"PatternNormalDepth.dds",     NULL, NULL, &TeapotNormalMap,  NULL ) ))  success = false;
-	if (FAILED( D3DX10CreateShaderResourceViewFromFile( Device, L"BrainDiffuseSpecular.dds",   NULL, NULL, &SphereDiffuseMap, NULL ) ))  success = false;
-	if (FAILED( D3DX10CreateShaderResourceViewFromFile( Device, L"BrainNormalDepth.dds",       NULL, NULL, &SphereNormalMap,  NULL ) ))  success = false;
-	if (FAILED( D3DX10CreateShaderResourceViewFromFile( Device, L"CobbleDiffuseSpecular.dds",  NULL, NULL, &FloorDiffuseMap,  NULL ) ))  success = false;
-	if (FAILED( D3DX10CreateShaderResourceViewFromFile( Device, L"CobbleNormalDepth.dds",      NULL, NULL, &FloorNormalMap,   NULL ) ))  success = false;
+	for (int i = 0; i < MODEL_COUNT; i++)
+	{
+		if (ModelArr[i].DiffuseMapName != L"")
+			if (FAILED(D3DX10CreateShaderResourceViewFromFile(Device, ModelArr[i].DiffuseMapName, NULL, NULL, &ModelArr[i].DiffuseMap, NULL)))  success = false;
+		if (ModelArr[i].NormalMapName != L"")
+			if (FAILED(D3DX10CreateShaderResourceViewFromFile(Device, ModelArr[i].NormalMapName, NULL, NULL, &ModelArr[i].NormalMap, NULL)))  success = false;
+	}
 	if (FAILED( D3DX10CreateShaderResourceViewFromFile( Device, L"flare.jpg",                  NULL, NULL, &LightDiffuseMap,  NULL ) ))  success = false;
 	if (!success)
 	{
@@ -309,12 +320,12 @@ void ReleaseScene()
 		delete LightArr[i].model;  LightArr[i].model = NULL;
 	}
 
+	for (int i = 0; i < MODEL_COUNT; i++)
+	{
+		delete ModelArr[i].model;  ModelArr[i].model = NULL;
+	}
+
 	delete Portal;        Portal = NULL;
-	delete Floor;         Floor = NULL;
-	delete Teapot;        Teapot = NULL;
-	delete Decal;         Decal = NULL;
-	delete Cube2;         Cube2 = NULL;
-	delete Cube;          Cube = NULL;
 	delete PortalCamera;  PortalCamera = NULL;
 	delete MainCamera;    MainCamera = NULL;
 
@@ -325,16 +336,11 @@ void ReleaseScene()
 	if (PortalTexture)           PortalTexture->Release();
 
     if (LightDiffuseMap)  LightDiffuseMap->Release();
-	if (FloorNormalMap)   FloorNormalMap->Release();
-	if (FloorDiffuseMap)  FloorDiffuseMap->Release();
-    if (TeapotNormalMap)  TeapotNormalMap->Release();
-    if (TeapotDiffuseMap) TeapotDiffuseMap->Release();
-	if (SphereNormalMap)  SphereNormalMap->Release();
-	if (SphereDiffuseMap) SphereDiffuseMap->Release();
-	if (DecalDiffuseMap)  DecalDiffuseMap->Release();
-	if (Cube2DiffuseMap)  CubeDiffuseMap->Release();
-    if (CubeNormalMap)    CubeNormalMap->Release();
-    if (CubeDiffuseMap)   CubeDiffuseMap->Release();
+	for (int i = 0; i < MODEL_COUNT; i++)
+	{
+		if (ModelArr[i].NormalMap)  ModelArr[i].NormalMap->Release();
+		if (ModelArr[i].DiffuseMap) ModelArr[i].DiffuseMap->Release();
+	}
 }
 
 //--------------------------------------------------------------------------------------
@@ -350,35 +356,60 @@ void UpdateScene( float frameTime )
 	PortalCamera->Control(frameTime, Key_T, Key_G, Key_F, Key_H, Key_N, Key_B, Key_V, Key_M);
 	
 	// Control cube position and update its world matrix each frame
-	Cube2->Control(frameTime, Key_I, Key_K, Key_J, Key_L, Key_U, Key_O, Key_Comma, Key_Period);
-	Decal->Control(frameTime, Key_I, Key_K, Key_J, Key_L, Key_U, Key_O, Key_Comma, Key_Period);
+	ModelArr[1].model->Control(frameTime, Key_I, Key_K, Key_J, Key_L, Key_U, Key_O, Key_Comma, Key_Period);
+	ModelArr[2].model->Control(frameTime, Key_I, Key_K, Key_J, Key_L, Key_U, Key_O, Key_Comma, Key_Period);
 	Portal->Control(frameTime, Key_I, Key_K, Key_J, Key_L, Key_U, Key_O, Key_Period, Key_Comma);
 
 	// Update the orbiting light - a bit of a cheat with the static variable [ask the tutor if you want to know what this is]
 	static float Rotate = 0.0f;
-	LightArr[0].model->SetPosition( Cube->Position() + D3DXVECTOR3(cos(Rotate)*LightOrbitRadius, 0, sin(Rotate)*LightOrbitRadius) );
+	LightArr[0].model->SetPosition(ModelArr[0].model->Position() + D3DXVECTOR3(cos(Rotate)*LightOrbitRadius, 0, sin(Rotate)*LightOrbitRadius) );
 	Rotate -= LightOrbitSpeed * frameTime;
 
 	// lighting
 	Pulse += frameTime;
-	LightArr[1].colour = RainbowColourDefault * abs(sin(Pulse));
+	LightArr[1].colour = PulseDefault * abs(sin(Pulse));
 	
 	HSL[0] += frameTime * ColourRotateRate;
 	HSLToRGB(HSL[0], HSL[1], HSL[2], LightArr[0].colour.x, LightArr[0].colour.y, LightArr[0].colour.z);
 
 	// Update mover
 	Mover += 0.1f * frameTime;
-	MoverVar->SetFloat(Mover);
 
 	// Update wiggle
 	Wiggle += 6 * frameTime;
-	WiggleVar->SetFloat(Wiggle);
 
 	// Toggle parallax
 	if (KeyHit( Key_1 ))
 	{
 		UseParallax = !UseParallax;
 	}
+
+	// Toggle move
+	if (KeyHit(Key_2))
+	{
+		UseMover = !UseMover;
+	}
+
+	// Toggle wiggle
+	if (KeyHit(Key_3))
+	{
+		UseWiggle = !UseWiggle;
+	}
+
+	// Wiggle Power
+	if (KeyHeld(Key_8))
+	{
+		WigglePower -= WIGGLE_POWER_RATE;
+	}
+	if (KeyHit(Key_9))
+	{
+		WigglePower = WIGGLE_POWER_DEFAULT;
+	}
+	if (KeyHeld(Key_0))
+	{
+		WigglePower += WIGGLE_POWER_RATE;
+	}
+
 }
 
 
@@ -403,41 +434,32 @@ void RenderModels(Camera* camera)
 	ProjMatrixVar->SetMatrix((float*)&camera->ProjectionMatrix());
 
 	// Render cube
-	WorldMatrixVar->SetMatrix((float*)Cube->WorldMatrix()); // Send the cube's world matrix to the shader
-	DiffuseMapVar->SetResource(CubeDiffuseMap);             // Send the cube's diffuse/specular map to the shader
-	NormalMapVar->SetResource(CubeNormalMap);               // Send the cube's normal/depth map to the shader
-	Cube->Render(ParallaxMappingTechnique);                 // Pass rendering technique to the model class
+	for (int i = 0; i < MODEL_COUNT; i++)
+	{
+		WorldMatrixVar->SetMatrix((float*)ModelArr[i].model->WorldMatrix()); // Send the cube's world matrix to the shader
+		DiffuseMapVar->SetResource(ModelArr[i].DiffuseMap);             // Send the cube's diffuse/specular map to the shader
+		NormalMapVar->SetResource(ModelArr[i].NormalMap);               // Send the cube's normal/depth map to the shader
+		TintColourVar->SetRawValue(ModelArr[i].tintColour, 0, 12);
 
-															// Same for the other models in the scene
-	WorldMatrixVar->SetMatrix((float*)Cube2->WorldMatrix());
-	DiffuseMapVar->SetResource(Cube2DiffuseMap);
-	Cube2->Render(VertexLitTexTechnique);
+		if (ModelArr[i].effectsAlways || UseMover)
+			MoverVar->SetFloat(Mover);
+		else
+			MoverVar->SetFloat(0);
+		if (ModelArr[i].effectsAlways || UseWiggle)
+			WiggleVar->SetFloat(Wiggle);
+		else
+			WiggleVar->SetFloat(0);
 
-	WorldMatrixVar->SetMatrix((float*)Decal->WorldMatrix());
-	DiffuseMapVar->SetResource(DecalDiffuseMap);
-	Decal->Render(AdditiveTintTexTechnique);
-
-	WorldMatrixVar->SetMatrix((float*)Teapot->WorldMatrix());
-	DiffuseMapVar->SetResource(TeapotDiffuseMap);
-	NormalMapVar->SetResource(TeapotNormalMap);
-	Teapot->Render(ParallaxMappingTechnique);
-
-	WorldMatrixVar->SetMatrix((float*)Sphere->WorldMatrix());
-	DiffuseMapVar->SetResource(SphereDiffuseMap);
-	NormalMapVar->SetResource(SphereNormalMap);
-	TintColourVar->SetRawValue(SphereColour, 0, 12);
-	Sphere->Render(ParallaxMappingTechniqueSphere);
-
-	WorldMatrixVar->SetMatrix((float*)Floor->WorldMatrix());
-	DiffuseMapVar->SetResource(FloorDiffuseMap);
-	NormalMapVar->SetResource(FloorNormalMap);
-	Floor->Render(ParallaxMappingTechnique);
+		ModelArr[i].model->Render(ModelArr[i].technique);                 // Pass rendering technique to the model class
+	}
 
 	for (int i = 0; i < LIGHT_COUNT; i++)
 	{
 		WorldMatrixVar->SetMatrix((float*)LightArr[i].model->WorldMatrix());
 		DiffuseMapVar->SetResource(LightDiffuseMap);
 		TintColourVar->SetRawValue(LightArr[i].colour * LightArr[i].power, 0, 12); // Using special shader that tints the light model to match the light colour
+		WiggleVar->SetFloat(0);
+		MoverVar->SetFloat(0);
 		LightArr[i].model->Render(AdditiveTintTexTechnique);
 	}
 
@@ -466,13 +488,15 @@ void RenderScene()
 	SpotLightVecVar->SetRawValue(LightArr[3].vector, 0, 12);
 	SpotLightColourVar->SetRawValue(LightArr[3].colour * LightArr[3].power, 0, 12);
 	SpotLightAngleVar->SetFloat(SpotLightAngle);
-	SphereColourVar->SetRawValue(SphereColour, 0, 12);
 	AmbientColourVar->SetRawValue(AmbientColour, 0, 12);
 	CameraPosVar->SetRawValue(MainCamera->Position(), 0, 12);
 	SpecularPowerVar->SetFloat(SpecularPower);
 
 	// Parallax mapping depth
 	ParallaxDepthVar->SetFloat(UseParallax ? ParallaxDepth : 0.0f);
+
+	// Sending Wiggle power
+	WigglePowerVar->SetFloat(WigglePower);
 
 	//---------------------------
 	// Render portal scene

@@ -20,7 +20,6 @@ extern ID3D10Effect*               Effect;
 
 // Variable for each technique used from the .fx file (found at the end of the .fx file)
 extern ID3D10EffectTechnique*      ParallaxMappingTechnique;
-extern ID3D10EffectTechnique*      ParallaxMappingTechniqueSphere;
 extern ID3D10EffectTechnique*      AdditiveTintTexTechnique;
 extern ID3D10EffectTechnique*      VertexLitTexTechnique;
 
@@ -41,7 +40,6 @@ extern ID3D10EffectVectorVariable* SpotLightPosVar;
 extern ID3D10EffectVectorVariable* SpotLightVecVar;
 extern ID3D10EffectVectorVariable* SpotLightColourVar;
 extern ID3D10EffectScalarVariable* SpotLightAngleVar;
-extern ID3D10EffectVectorVariable* SphereColourVar;
 extern ID3D10EffectVectorVariable* AmbientColourVar;
 extern ID3D10EffectVectorVariable* CameraPosVar;
 extern ID3D10EffectScalarVariable* SpecularPowerVar;
@@ -57,6 +55,7 @@ extern ID3D10EffectVectorVariable* TintColourVar;
 // Effects
 extern ID3D10EffectScalarVariable* MoverVar;
 extern ID3D10EffectScalarVariable* WiggleVar;
+extern ID3D10EffectScalarVariable* WigglePowerVar;
 
 
 //--------------------------------------------------------------------------------------
