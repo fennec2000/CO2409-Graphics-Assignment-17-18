@@ -38,6 +38,9 @@ ID3D10EffectTechnique* DepthOnlyTechnique     = NULL;
 // Unlike matrices, if whe have many lights we need many shader variables because
 // a single model can be affected by many lights
 ID3D10EffectVectorVariable* Light1PosVar          = NULL;
+ID3D10EffectVectorVariable* Light1FacingVar       = NULL;
+ID3D10EffectMatrixVariable* Light1ViewMatrixVar   = NULL;
+ID3D10EffectMatrixVariable* Light1ProjMatrixVar   = NULL;
 ID3D10EffectVectorVariable* Light1ColourVar       = NULL;
 ID3D10EffectVectorVariable* Light2PosVar          = NULL;
 ID3D10EffectVectorVariable* Light2ColourVar       = NULL;
@@ -57,6 +60,7 @@ ID3D10EffectScalarVariable* SpecularPowerVar      = NULL;
 // Textures - two textures in the pixel shader now - diffuse/specular map and normal/depth map
 ID3D10EffectShaderResourceVariable* DiffuseMapVar = NULL;
 ID3D10EffectShaderResourceVariable* NormalMapVar  = NULL;
+ID3D10EffectShaderResourceVariable* ShadowMap1Var = NULL; // Pass shadow maps to pixel shader to test if pixels are in shadow
 
 // Miscellaneous variables to send values from C++ to shaders
 ID3D10EffectScalarVariable* ParallaxDepthVar = NULL; // To set the depth of the parallax mapping effect
@@ -116,6 +120,9 @@ bool InitShaders()
 	// Also access shader variables needed for lighting
 	Light1PosVar          = Effect->GetVariableByName("Light1Pos"         )->AsVector();
 	Light1ColourVar       = Effect->GetVariableByName("Light1Colour"      )->AsVector();
+	Light1FacingVar       = Effect->GetVariableByName("Light1Facing"      )->AsVector();
+	Light1ViewMatrixVar   = Effect->GetVariableByName("Light1ViewMatrix"  )->AsMatrix();
+	Light1ProjMatrixVar   = Effect->GetVariableByName("Light1ProjMatrix"  )->AsMatrix();
 	Light2PosVar          = Effect->GetVariableByName("Light2Pos"         )->AsVector();
 	Light2ColourVar       = Effect->GetVariableByName("Light2Colour"      )->AsVector();
 	Light3PosVar          = Effect->GetVariableByName("Light3Pos"         )->AsVector();
@@ -139,6 +146,7 @@ bool InitShaders()
 	// Both diffuse and normal maps have variables
 	DiffuseMapVar    = Effect->GetVariableByName("DiffuseMap"     )->AsShaderResource();
 	NormalMapVar     = Effect->GetVariableByName("NormalMap"      )->AsShaderResource();
+	ShadowMap1Var    = Effect->GetVariableByName("ShadowMap1"     )->AsShaderResource(); // Will pass shadow maps over to pixel shader
 
 	// Effects
 	MoverVar         = Effect->GetVariableByName("Mover"          )->AsScalar();

@@ -78,6 +78,8 @@ float3 Light1Pos;
 float3 Light2Pos;
 float3 Light3Pos;
 float3 SpotLightPos;
+float4x4 Light1ViewMatrix;
+float4x4 Light1ProjMatrix;
 float3 DirrectionalVec;
 float3 SpotLightVec;
 float3 Light1Colour;
@@ -102,6 +104,9 @@ Texture2D DiffuseMap;
 //****| INFO | Normal map, now contains depth per pixel in the alpha channel ****//
 Texture2D NormalMap;
 
+// Shadow map
+Texture2D ShadowMap1;
+
 //****| INFO | Also store a factor to strengthen/weaken the parallax effect. Cannot exaggerate it too much or will get distortion ****//
 float ParallaxDepth;
 
@@ -112,6 +117,12 @@ SamplerState TrilinearWrap
     Filter = MIN_MAG_MIP_LINEAR;
     AddressU = Wrap;
     AddressV = Wrap;
+};
+SamplerState PointClamp
+{
+	Filter = MIN_MAG_MIP_POINT;
+	AddressU = Clamp;
+	AddressV = Clamp;
 };
 
 
@@ -230,6 +241,9 @@ VS_BASIC_OUTPUT BasicTransform( VS_BASIC_INPUT vIn )
 // for the varying height of the texture (see lecture)
 float4 NormalMapLighting( VS_NORMALMAP_OUTPUT vOut ) : SV_Target
 {
+	// Slight adjustment to calculated depth of pixels so they don't shadow themselves
+	const float DepthAdjust = 0.0005f;
+
 	//************************
 	// Normal Map Extraction
 	//************************
@@ -292,13 +306,25 @@ float4 NormalMapLighting( VS_NORMALMAP_OUTPUT vOut ) : SV_Target
 	// Calculate lighting
 
 	// Would normally calculate "CameraDir" here, but it has already been calculated for use in the parallax mapping
+	float3 halfway;
 	
 	//// LIGHT 1
-	float3 Light1Dir = normalize(Light1Pos - vOut.WorldPos.xyz);   // Direction for each light is different
-	float3 Light1Dist = length(Light1Pos - vOut.WorldPos.xyz); 
-	float3 DiffuseLight1 = Light1Colour * max( dot(worldNormal.xyz, Light1Dir), 0 ) / Light1Dist;
-	float3 halfway = normalize(Light1Dir + CameraDir);
-	float3 SpecularLight1 = DiffuseLight1 * pow( max( dot(worldNormal.xyz, halfway), 0 ), SpecularPower );
+	float3 DiffuseLight1 = 0;
+	float3 SpecularLight1 = 0;
+	float4 light1ViewPos = mul( float4(vOut.WorldPos, 1.0f), Light1ViewMatrix ); 
+	float4 light1ProjPos = mul(light1ViewPos, Light1ProjMatrix);
+	float2 shadowUV = 0.5f * light1ProjPos.xy / light1ProjPos.w + float2( 0.5f, 0.5f );
+	shadowUV.y = 1.0f - shadowUV.y;
+	// Get depth of this pixel if it were visible from the light (another advanced projection step)
+	float depthFromLight = light1ProjPos.z / light1ProjPos.w - DepthAdjust; //*** Adjustment so polygons don't shadow themselves
+	if (depthFromLight < ShadowMap1.Sample(PointClamp, shadowUV).r)
+	{
+		float3 Light1Dir = normalize(Light1Pos - vOut.WorldPos.xyz);   // Direction for each light is different
+		float3 Light1Dist = length(Light1Pos - vOut.WorldPos.xyz);
+		DiffuseLight1 = Light1Colour * max(dot(worldNormal.xyz, Light1Dir), 0) / Light1Dist;
+		halfway = normalize(Light1Dir + CameraDir);
+		SpecularLight1 = DiffuseLight1 * pow(max(dot(worldNormal.xyz, halfway), 0), SpecularPower);
+	}
 
 	//// LIGHT 2
 	float3 Light2Dir = normalize(Light2Pos - vOut.WorldPos.xyz);

@@ -33,6 +33,9 @@ extern ID3D10EffectMatrixVariable* ViewProjMatrixVar;
 
 // Lights - variables used to send values from C++ to shader (fx file) variables
 extern ID3D10EffectVectorVariable* Light1PosVar;
+extern ID3D10EffectVectorVariable* Light1FacingVar;
+extern ID3D10EffectMatrixVariable* Light1ViewMatrixVar;
+extern ID3D10EffectMatrixVariable* Light1ProjMatrixVar;
 extern ID3D10EffectVectorVariable* Light1ColourVar;
 extern ID3D10EffectVectorVariable* Light2PosVar;
 extern ID3D10EffectVectorVariable* Light2ColourVar;

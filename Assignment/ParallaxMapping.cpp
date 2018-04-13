@@ -55,7 +55,7 @@ bool UseParallax    = true;  // Toggle for parallax
 // Very similar data to the render-to-texture (portal) lab
 
 // Width and height of shadow map - controls resolution/quality of shadows
-int ShadowMapSize = 2048;
+int ShadowMapSize = 512;
 
 // The shadow map textures and the view of it as a depth buffer and shader resource (see code comments)
 ID3D10Texture2D*          ShadowMap1Texture = NULL;
@@ -66,6 +66,7 @@ ID3D10ShaderResourceView* ShadowMap1 = NULL;
 
 // Fixed light data
 D3DXVECTOR3 AmbientColour = D3DXVECTOR3(0.2f, 0.2f, 0.3f);
+D3DXVECTOR4 BackgroundColour = D3DXVECTOR4(0.2f, 0.2f, 0.3f, 1.0f);
 
 const int NUM_LIGHTS = 3;
 D3DXVECTOR3 LightColours[NUM_LIGHTS] = { D3DXVECTOR3(0.8f, 0.8f, 1.0f),
@@ -91,13 +92,10 @@ float SpecularPower = 256.0f;
 // used to rotate colours
 float HSL[3];
 float ColourRotateRate = 1000.0f;
-float Light1Power = 20.0f;
+float Light1Power = 200.0f;
 
 
 // Display models where the lights are. One of the lights will follow an orbit
-Model* Light1;
-Model* Light2;
-Model* Light3;
 Model* SpotLight;
 const float LightOrbitRadius = 20.0f;
 const float LightOrbitSpeed  = 0.7f;
@@ -160,9 +158,6 @@ bool InitScene()
 	Teapot    = new Model;
 	Sphere    = new Model;
 	Floor     = new Model;
-	Light1    = new Model;
-	Light2    = new Model;
-	Light3    = new Model;
 	SpotLight = new Model;
 
 	// Load the model's geometry from ".X" files
@@ -179,9 +174,6 @@ bool InitScene()
 	if (!Teapot->   Load( "Teapot.x", ParallaxMappingTechnique,        true ))  success = false;
 	if (!Sphere->   Load( "Sphere.x", ParallaxMappingTechniqueSphere,  true ))  success = false;
 	if (!Floor->    Load( "Hills.x",  ParallaxMappingTechnique,        true ))  success = false;
-	if (!Light1->   Load( "Light.x",  AdditiveTintTexTechnique              ))  success = false;
-	if (!Light2->   Load( "Light.x",  AdditiveTintTexTechnique              ))  success = false;
-	if (!Light3->   Load( "Light.x",  AdditiveTintTexTechnique              ))  success = false;
 	if (!SpotLight->Load( "Light.x",  AdditiveTintTexTechnique              ))  success = false;
 	if (!success)
 	{
@@ -194,14 +186,30 @@ bool InitScene()
 	Cube2-> SetPosition( D3DXVECTOR3( 10, 15, -80));
 	Teapot->SetPosition( D3DXVECTOR3( 40, 10,  10) );
 	Sphere->SetPosition( D3DXVECTOR3(  0, 20,  10) );
-	Light1->SetPosition( D3DXVECTOR3( 30, 15, -40) );
-	Light1->SetScale( 5.0f );
-	Light2->SetPosition( D3DXVECTOR3( 20, 40, -20) );
-	Light2->SetScale( 12.0f );
-	Light3->SetPosition(D3DXVECTOR3(30, 15, -80));
-	Light3->SetScale(5.0f);
 	SpotLight->SetPosition( D3DXVECTOR3(60, 20, -60));
 	SpotLight->SetScale( 12.0f );
+
+
+	for (int i = 0; i < NUM_LIGHTS; i++)
+	{
+		Lights[i] = new Model;
+		if (!Lights[i]->Load("Light.x", AdditiveTintTexTechnique))  success = false;
+	}
+	if (!success)
+	{
+		MessageBox(NULL, L"Error loading model files. Ensure your files are correctly named and in the same folder as this executable.", L"Error", MB_OK);
+		return false;
+	}
+
+	Lights[0]->SetPosition(D3DXVECTOR3(30, 15, -40));
+	Lights[0]->SetScale(5.0f);
+	Lights[0]->FacePoint(D3DXVECTOR3(0, 0, 0));
+	Lights[1]->SetPosition(D3DXVECTOR3(20, 40, -20));
+	Lights[1]->SetScale(12.0f);
+	Lights[1]->FacePoint(D3DXVECTOR3(0, 0, 0));
+	Lights[2]->SetPosition(D3DXVECTOR3(30, 15, -80));
+	Lights[2]->SetScale(5.0f);
+	Lights[2]->FacePoint(D3DXVECTOR3(0, 0, 0));
 
 	// Setup Light1's colour
 	// Light 1 colour to HSL
@@ -284,10 +292,12 @@ bool InitScene()
 //--------------------------------------------------------------------------------------
 void ReleaseScene()
 {
+	// Using an array of lights in this lab
+	for (int i = 0; i < NUM_LIGHTS; i++)
+	{
+		delete Lights[i];  Lights[i] = NULL;
+	}
 	delete SpotLight;  SpotLight = NULL;
-	delete Light3;     Light3 = NULL;
-	delete Light2;     Light2 = NULL;
-	delete Light1;     Light1 = NULL;
 	delete Floor;      Floor = NULL;
 	delete Teapot;     Teapot = NULL;
 	delete Cube2;      Cube2 = NULL;
@@ -327,8 +337,9 @@ void UpdateScene( float frameTime )
 	// Update the orbiting light - a bit of a cheat with the static variable [ask the tutor if you want to know what this is]
 	static float Rotate = 0.0f;
 	D3DXVECTOR3 circle = D3DXVECTOR3(cos(Rotate)*LightOrbitRadius, 0, sin(Rotate)*LightOrbitRadius);
-	Light1->SetPosition( Cube->Position() + circle);
-	Light3->SetPosition( Cube2->Position() + circle);
+	Lights[0]->SetPosition( Cube->Position() + circle);
+	Lights[0]->FacePoint(Cube->Position());
+	Lights[2]->SetPosition( Cube2->Position() + circle);
 	Rotate -= LightOrbitSpeed * frameTime;
 
 	// lighting
@@ -383,7 +394,7 @@ void RenderMain(Camera* camera)
 	NormalMapVar->SetResource(CubeNormalMap);               // Send the cube's normal/depth map to the shader
 	Cube->Render(ParallaxMappingTechnique);                 // Pass rendering technique to the model class
 
-															// Same for the other models in the scene
+	// Same for the other models in the scene
 	WorldMatrixVar->SetMatrix((float*)Cube2->WorldMatrix());
 	DiffuseMapVar->SetResource(Cube2DiffuseMap);
 	Cube2->Render(VertexLitTexTechnique);
@@ -404,25 +415,19 @@ void RenderMain(Camera* camera)
 	NormalMapVar->SetResource(FloorNormalMap);
 	Floor->Render(ParallaxMappingTechnique);
 
-	WorldMatrixVar->SetMatrix((float*)Light1->WorldMatrix());
-	DiffuseMapVar->SetResource(LightDiffuseMap);
-	TintColourVar->SetRawValue(LightColours[0], 0, 12); // Using special shader that tints the light model to match the light colour
-	Light1->Render(AdditiveTintTexTechnique);
-
-	WorldMatrixVar->SetMatrix((float*)Light2->WorldMatrix());
-	DiffuseMapVar->SetResource(LightDiffuseMap);
-	TintColourVar->SetRawValue(LightColours[1], 0, 12);
-	Light2->Render(AdditiveTintTexTechnique);
-
-	WorldMatrixVar->SetMatrix((float*)Light3->WorldMatrix());
-	DiffuseMapVar->SetResource(LightDiffuseMap);
-	TintColourVar->SetRawValue(LightColours[2], 0, 12);
-	Light3->Render(AdditiveTintTexTechnique);
-
 	WorldMatrixVar->SetMatrix((float*)SpotLight->WorldMatrix());
 	DiffuseMapVar->SetResource(LightDiffuseMap);
 	TintColourVar->SetRawValue(SpotLightColour, 0, 12);
 	SpotLight->Render(AdditiveTintTexTechnique);
+
+	// Using an array of lights in this lab
+	for (int i = 0; i < NUM_LIGHTS; i++)
+	{
+		WorldMatrixVar->SetMatrix((float*)Lights[i]->WorldMatrix());
+		DiffuseMapVar->SetResource(LightDiffuseMap);
+		TintColourVar->SetRawValue(LightColours[i], 0, 12); // Using special shader that tints the light model to match the light colour
+		Lights[i]->Render(AdditiveTintTexTechnique);
+	}
 }
 
 // Render a shadow map for the given light number: render only the models that can obscure other objects, using a special depth-rendering
@@ -445,16 +450,16 @@ void RenderShadowMap(int lightNum)
 	Cube->Render(DepthOnlyTechnique);  // Use special rendering technique to render depths only
 
 	// Same for the other models in the scene
-	WorldMatrixVar->SetMatrix((float*)Cube2->WorldMatrix());
+	WorldMatrixVar->SetMatrix(Cube2->WorldMatrix());
 	Cube2->Render(DepthOnlyTechnique);
 
-	WorldMatrixVar->SetMatrix((float*)Teapot->WorldMatrix());
+	WorldMatrixVar->SetMatrix(Teapot->WorldMatrix());
 	Teapot->Render(DepthOnlyTechnique);
 
-	WorldMatrixVar->SetMatrix((float*)Sphere->WorldMatrix());
+	WorldMatrixVar->SetMatrix(Sphere->WorldMatrix());
 	Sphere->Render(DepthOnlyTechnique);
 
-	WorldMatrixVar->SetMatrix((float*)Floor->WorldMatrix());
+	WorldMatrixVar->SetMatrix(Floor->WorldMatrix());
 	Floor->Render(DepthOnlyTechnique);
 }
 
@@ -482,16 +487,16 @@ void RenderScene()
 	ProjMatrixVar->SetMatrix( (float*)&MainCamera->ProjectionMatrix() );
 
 	// Pass light information to the vertex shader - lights are the same for each model
-	Light1PosVar->         SetRawValue( Light1->Position(), 0, 12 );  // Send 3 floats (12 bytes) from C++ LightPos variable (x,y,z) to shader counterpart (middle parameter is unused) 
-	/*Light1FacingVar->      SetRawValue(Lights[0]->Facing(), 0, 12);
+	Light1PosVar->         SetRawValue(Lights[0]->Position(), 0, 12 );  // Send 3 floats (12 bytes) from C++ LightPos variable (x,y,z) to shader counterpart (middle parameter is unused) 
+	Light1FacingVar->      SetRawValue(Lights[0]->Facing(), 0, 12);
 	Light1ViewMatrixVar->  SetMatrix(CalculateLightViewMatrix(0));
-	Light1ProjMatrixVar->  SetMatrix(CalculateLightProjMatrix(0));*/
+	Light1ProjMatrixVar->  SetMatrix(CalculateLightProjMatrix(0));
 	Light1ColourVar->      SetRawValue(LightColours[0], 0, 12 );
 
-	Light2PosVar->         SetRawValue( Light2->Position(), 0, 12 );
+	Light2PosVar->         SetRawValue(Lights[1]->Position(), 0, 12 );
 	Light2ColourVar->      SetRawValue(LightColours[1], 0, 12 );
 
-	Light3PosVar->         SetRawValue( Light3->Position(), 0, 12);
+	Light3PosVar->         SetRawValue(Lights[2]->Position(), 0, 12);
 	Light3ColourVar->      SetRawValue(LightColours[2], 0, 12);
 	DirrectionalVecVar->   SetRawValue( DirrectionalVec, 0, 12);
 	DirrectionalColourVar->SetRawValue( DirrectionalColour, 0, 12);
@@ -542,14 +547,15 @@ void RenderScene()
 	Device->RSSetViewports(1, &vp);
 
 	// Select the back buffer and depth buffer to use for rendering
-	Device->OMSetRenderTargets(1, &BackBufferRenderTarget, DepthStencilView);
+	Device->OMSetRenderTargets(1, &RenderTargetView, DepthStencilView);
 
 	// Clear the back buffer and its depth buffer
-	Device->ClearRenderTargetView(BackBufferRenderTarget, &BackgroundColour[0]);
+	Device->ClearRenderTargetView(RenderTargetView, &BackgroundColour[0]);
 	Device->ClearDepthStencilView(DepthStencilView, D3D10_CLEAR_DEPTH, 1.0f, 0);
 
 	// Render everything from the main camera's point of view
 	RenderMain(MainCamera);
+	//RenderShadowMap( 0 );
 
 	//---------------------------
 	// Display the Scene
