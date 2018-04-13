@@ -10,6 +10,15 @@
 #include "Input.h"  // Input functions - not DirectX
 #include "Colour\ColourConversions.h"  // my hsl and rbs conversions
 
+enum ELightType { point, directional, spot };
+
+struct Light {
+	ELightType type;
+	D3DXVECTOR3 colour;
+	float power;
+	D3DXVECTOR3 vector;
+	Model* model;
+};
 
 //--------------------------------------------------------------------------------------
 // Global Scene Variables
@@ -80,13 +89,16 @@ bool UseParallax    = true;  // Toggle for parallax
 // Light data still stored manually, a light class would be helpful - but it's an assignment task!
 D3DXVECTOR4 BackgroundColour = D3DXVECTOR4(0.2f, 0.2f, 0.3f, 1.0f);
 D3DXVECTOR3 AmbientColour = D3DXVECTOR3( 0.2f, 0.2f, 0.3f );
-D3DXVECTOR3 Light1Colour  = D3DXVECTOR3( 0.8f, 0.8f, 1.0f );
-D3DXVECTOR3 Light2Colour  = D3DXVECTOR3( 1.0f, 0.8f, 0.2f ) * 30;
-D3DXVECTOR3 Light2ColourDefault = Light2Colour;
-D3DXVECTOR3 DirrectionalColour = D3DXVECTOR3(0, 0, 1.0f) * 0.1f;
-D3DXVECTOR3 DirrectionalVec = D3DXVECTOR3(0, 1, 0);
-D3DXVECTOR3 SpotLightColour = D3DXVECTOR3(1, 1, 1) * 50;
-D3DXVECTOR3 SpotLightVec = D3DXVECTOR3(0, 0.707107f, -0.707107f); // normalised
+
+const int LIGHT_COUNT = 4;
+Light LightArr[LIGHT_COUNT] = {
+	{ point, D3DXVECTOR3(0.8f, 0.8f, 1.0f), 20 },
+	{ point, D3DXVECTOR3(1.0f, 0.8f, 0.2f), 30 },
+	{ directional, D3DXVECTOR3(0, 0, 1.0f), 0.1f, D3DXVECTOR3(0, 1, 0) },
+	{ spot, D3DXVECTOR3(1, 1, 1), 50, D3DXVECTOR3(0, 0.707107f, -0.707107f) }
+};
+
+D3DXVECTOR3 RainbowColourDefault = LightArr[1].colour;
 
 float SpotLightAngle = 0.52f; // aprox 30 degrees - 29.79381
 
@@ -97,12 +109,8 @@ float SpecularPower = 256.0f;
 // used to rotate colours
 float HSL[3];
 float ColourRotateRate = 1000.0f;
-float Light1Power = 20.0f;
 
 // Display models where the lights are. One of the lights will follow an orbit
-Model* Light1;
-Model* Light2;
-Model* SpotLight;
 const float LightOrbitRadius = 20.0f;
 const float LightOrbitSpeed  = 0.7f;
 
@@ -141,9 +149,6 @@ bool InitScene()
 	Teapot    = new Model;
 	Sphere    = new Model;
 	Floor     = new Model;
-	Light1    = new Model;
-	Light2    = new Model;
-	SpotLight = new Model;
 	Portal    = new Model;
 
 	// Load the model's geometry from ".X" files
@@ -161,10 +166,19 @@ bool InitScene()
 	if (!Teapot->   Load( "Teapot.x", ParallaxMappingTechnique,        true ))  success = false;
 	if (!Sphere->   Load( "Sphere.x", ParallaxMappingTechniqueSphere,  true ))  success = false;
 	if (!Floor->    Load( "Hills.x",  ParallaxMappingTechnique,        true ))  success = false;
-	if (!Light1->   Load( "Light.x",  AdditiveTintTexTechnique              ))  success = false;
-	if (!Light2->   Load( "Light.x",  AdditiveTintTexTechnique              ))  success = false;
-	if (!SpotLight->Load( "Light.x",  AdditiveTintTexTechnique              ))  success = false;
 	if (!Portal->   Load( "Portal.x", VertexLitTexTechnique                 ))  success = false;
+	if (!success)
+	{
+		MessageBox(NULL, L"Error loading model files. Ensure your files are correctly named and in the same folder as this executable.", L"Error", MB_OK);
+		return false;
+	}
+
+	// lights
+	for (int i = 0; i < LIGHT_COUNT; i++)
+	{
+		LightArr[i].model = new Model;
+		if (!LightArr[i].model->Load("Light.x", AdditiveTintTexTechnique))  success = false;
+	}
 	if (!success)
 	{
 		MessageBox(NULL, L"Error loading model files. Ensure your files are correctly named and in the same folder as this executable.", L"Error", MB_OK);
@@ -177,19 +191,21 @@ bool InitScene()
 	Decal-> SetPosition( Cube2->Position() + D3DXVECTOR3(0, 0, -0.1f));
 	Teapot->SetPosition( D3DXVECTOR3( 40, 10,  10) );
 	Sphere->SetPosition( D3DXVECTOR3(  0, 20,  10) );
-	Light1->SetPosition( D3DXVECTOR3( 30, 15, -40) );
-	Light1->SetScale( 5.0f );
-	Light2->SetPosition( D3DXVECTOR3( 20, 40, -20) );
-	Light2->SetScale( 12.0f );
-	SpotLight->SetPosition( D3DXVECTOR3(60, 20, -60));
-	SpotLight->SetScale( 12.0f );
+
+	LightArr[0].model->SetPosition( D3DXVECTOR3( 30, 15, -40) );
+	LightArr[0].model->SetScale( 5.0f );
+	LightArr[1].model->SetPosition( D3DXVECTOR3( 20, 40, -20) );
+	LightArr[2].model->SetScale( 12.0f );
+	LightArr[3].model->SetPosition( D3DXVECTOR3(60, 20, -60));
+	LightArr[3].model->SetScale( 12.0f );
+
 	Portal->SetPosition(D3DXVECTOR3(40, 20, 40));
 	Portal->SetRotation(D3DXVECTOR3(0.0f, ToRadians(-130.0f), 0.0f));
 
 	// Setup Light1's colour
 	// Light 1 colour to HSL
 	// used to rotate colours
-	RGBToHSL(Light1Colour.x, Light1Colour.y, Light1Colour.z, HSL[0], HSL[1], HSL[2]);
+	RGBToHSL(LightArr[0].colour.x, LightArr[0].colour.y, LightArr[0].colour.z, HSL[0], HSL[1], HSL[2]);
 
 
 	//---------------------------
@@ -288,10 +304,12 @@ bool InitScene()
 //--------------------------------------------------------------------------------------
 void ReleaseScene()
 {
+	for (int i = 0; i < LIGHT_COUNT; i++)
+	{
+		delete LightArr[i].model;  LightArr[i].model = NULL;
+	}
+
 	delete Portal;        Portal = NULL;
-	delete SpotLight;     SpotLight = NULL;
-	delete Light2;        Light2 = NULL;
-	delete Light1;        Light1 = NULL;
 	delete Floor;         Floor = NULL;
 	delete Teapot;        Teapot = NULL;
 	delete Decal;         Decal = NULL;
@@ -338,16 +356,15 @@ void UpdateScene( float frameTime )
 
 	// Update the orbiting light - a bit of a cheat with the static variable [ask the tutor if you want to know what this is]
 	static float Rotate = 0.0f;
-	Light1->SetPosition( Cube->Position() + D3DXVECTOR3(cos(Rotate)*LightOrbitRadius, 0, sin(Rotate)*LightOrbitRadius) );
+	LightArr[0].model->SetPosition( Cube->Position() + D3DXVECTOR3(cos(Rotate)*LightOrbitRadius, 0, sin(Rotate)*LightOrbitRadius) );
 	Rotate -= LightOrbitSpeed * frameTime;
 
 	// lighting
 	Pulse += frameTime;
-	Light2Colour = Light2ColourDefault * abs(sin(Pulse));
+	LightArr[1].colour = RainbowColourDefault * abs(sin(Pulse));
 	
 	HSL[0] += frameTime * ColourRotateRate;
-	HSLToRGB(HSL[0], HSL[1], HSL[2], Light1Colour.x, Light1Colour.y, Light1Colour.z);
-	Light1Colour *= Light1Power;
+	HSLToRGB(HSL[0], HSL[1], HSL[2], LightArr[0].colour.x, LightArr[0].colour.y, LightArr[0].colour.z);
 
 	// Update mover
 	Mover += 0.1f * frameTime;
@@ -416,20 +433,13 @@ void RenderModels(Camera* camera)
 	NormalMapVar->SetResource(FloorNormalMap);
 	Floor->Render(ParallaxMappingTechnique);
 
-	WorldMatrixVar->SetMatrix((float*)Light1->WorldMatrix());
-	DiffuseMapVar->SetResource(LightDiffuseMap);
-	TintColourVar->SetRawValue(Light1Colour, 0, 12); // Using special shader that tints the light model to match the light colour
-	Light1->Render(AdditiveTintTexTechnique);
-
-	WorldMatrixVar->SetMatrix((float*)Light2->WorldMatrix());
-	DiffuseMapVar->SetResource(LightDiffuseMap);
-	TintColourVar->SetRawValue(Light2Colour, 0, 12);
-	Light2->Render(AdditiveTintTexTechnique);
-
-	WorldMatrixVar->SetMatrix((float*)SpotLight->WorldMatrix());
-	DiffuseMapVar->SetResource(LightDiffuseMap);
-	TintColourVar->SetRawValue(SpotLightColour, 0, 12);
-	SpotLight->Render(AdditiveTintTexTechnique);
+	for (int i = 0; i < LIGHT_COUNT; i++)
+	{
+		WorldMatrixVar->SetMatrix((float*)LightArr[i].model->WorldMatrix());
+		DiffuseMapVar->SetResource(LightDiffuseMap);
+		TintColourVar->SetRawValue(LightArr[i].colour * LightArr[i].power, 0, 12); // Using special shader that tints the light model to match the light colour
+		LightArr[i].model->Render(AdditiveTintTexTechnique);
+	}
 
 	WorldMatrixVar->SetMatrix((float*)Portal->WorldMatrix());
 	DiffuseMapVar->SetResource(PortalMap);
@@ -446,15 +456,15 @@ void RenderScene()
 
 
 	// Pass light information to the vertex shader - lights are the same for each model
-	Light1PosVar->SetRawValue(Light1->Position(), 0, 12);  // Send 3 floats (12 bytes) from C++ LightPos variable (x,y,z) to shader counterpart (middle parameter is unused) 
-	Light1ColourVar->SetRawValue(Light1Colour, 0, 12);
-	Light2PosVar->SetRawValue(Light2->Position(), 0, 12);
-	Light2ColourVar->SetRawValue(Light2Colour, 0, 12);
-	DirrectionalVecVar->SetRawValue(DirrectionalVec, 0, 12);
-	DirrectionalColourVar->SetRawValue(DirrectionalColour, 0, 12);
-	SpotLightPosVar->SetRawValue(SpotLight->Position(), 0, 12);
-	SpotLightVecVar->SetRawValue(SpotLightVec, 0, 12);
-	SpotLightColourVar->SetRawValue(SpotLightColour, 0, 12);
+	Light1PosVar->SetRawValue(LightArr[0].model->Position(), 0, 12);  // Send 3 floats (12 bytes) from C++ LightPos variable (x,y,z) to shader counterpart (middle parameter is unused) 
+	Light1ColourVar->SetRawValue(LightArr[0].colour * LightArr[0].power, 0, 12);
+	Light2PosVar->SetRawValue(LightArr[1].model->Position(), 0, 12);
+	Light2ColourVar->SetRawValue(LightArr[1].colour * LightArr[1].power, 0, 12);
+	DirrectionalVecVar->SetRawValue(LightArr[2].vector, 0, 12);
+	DirrectionalColourVar->SetRawValue(LightArr[2].colour * LightArr[2].power, 0, 12);
+	SpotLightPosVar->SetRawValue(LightArr[3].model->Position(), 0, 12);
+	SpotLightVecVar->SetRawValue(LightArr[3].vector, 0, 12);
+	SpotLightColourVar->SetRawValue(LightArr[3].colour * LightArr[3].power, 0, 12);
 	SpotLightAngleVar->SetFloat(SpotLightAngle);
 	SphereColourVar->SetRawValue(SphereColour, 0, 12);
 	AmbientColourVar->SetRawValue(AmbientColour, 0, 12);
