@@ -47,6 +47,16 @@ struct VS_NORMALMAP_OUTPUT
 	float2 UV           : TEXCOORD0;
 };
 
+// The vertex shader processes the input geometry above and outputs data to be used by the rest of the pipeline. This is the output
+// used in the lighting technique - containing a 2D position, lighting colours and texture coordinates
+struct VS_LIGHTING_OUTPUT
+{
+	float4 ProjPos       : SV_POSITION;  // 2D "projected" position for vertex (required output for vertex shader)
+	float3 WorldPos      : POSITION;
+	float3 WorldNormal   : NORMAL;
+	float2 UV            : TEXCOORD0;
+};
+
 
 //--------------------------------------------------------------------------------------
 // Global Variables
@@ -175,6 +185,30 @@ VS_BASIC_OUTPUT BasicTransform( VS_BASIC_INPUT vIn )
 	
 	// Pass texture coordinates (UVs) on to the pixel shader
 	vOut.UV = vIn.UV;
+
+	return vOut;
+}
+
+VS_LIGHTING_OUTPUT VertexLightingTex(VS_BASIC_INPUT vIn)
+{
+	VS_LIGHTING_OUTPUT vOut;
+
+	// Use world matrix passed from C++ to transform the input model vertex position into world space
+	float4 modelPos = float4(vIn.Pos, 1.0f); // Promote to 1x4 so we can multiply by 4x4 matrix, put 1.0 in 4th element for a point (0.0 for a vector)
+	float4 worldPos = mul(modelPos, WorldMatrix);
+	vOut.WorldPos = worldPos.xyz;
+
+	// Use camera matrices to further transform the vertex from world space into view space (camera's point of view) and finally into 2D "projection" space for rendering
+	float4 viewPos = mul(worldPos, ViewMatrix);
+	vOut.ProjPos = mul(viewPos, ProjMatrix);
+
+	// Transform the vertex normal from model space into world space (almost same as first lines of code above)
+	float4 modelNormal = float4(vIn.Normal, 0.0f); // Set 4th element to 0.0 this time as normals are vectors
+	vOut.WorldNormal = mul(modelNormal, WorldMatrix).xyz;
+
+	// Pass texture coordinates (UVs) on to the pixel shader, the vertex shader doesn't need them
+	vOut.UV = vIn.UV;
+
 
 	return vOut;
 }
@@ -459,6 +493,85 @@ float4 TintDiffuseMap( VS_BASIC_OUTPUT vOut ) : SV_Target
 	return diffuseMapColour;
 }
 
+// The pixel shader determines colour for each pixel in the rendered polygons, given the data passed on from the vertex shader
+// This shader expects vertex position, normal and UVs from the vertex shader. It calculates per-pixel lighting and combines with diffuse and specular map
+//
+float4 VertexLitDiffuseMap(VS_LIGHTING_OUTPUT vOut) : SV_Target  // The ": SV_Target" bit just indicates that the returned float4 colour goes to the render target (i.e. it's a colour to render)
+{
+	// Can't guarantee the normals are length 1 now (because the world matrix may contain scaling), so renormalise
+	// If lighting in the pixel shader, this is also because the interpolation from vertex shader to pixel shader will also rescale normals
+	float3 worldNormal = normalize(vOut.WorldNormal);
+
+	// Calculate direction of camera
+	float3 CameraDir = normalize(CameraPos - vOut.WorldPos.xyz); // Position of camera - position of current vertex (or pixel) (in world space)
+
+	//// LIGHT 1
+	float3 Light1Dir = normalize(Light1Pos - vOut.WorldPos.xyz);   // Direction for each light is different
+	float3 Light1Dist = length(Light1Pos - vOut.WorldPos.xyz);
+	float3 DiffuseLight1 = Light1Colour * max(dot(worldNormal.xyz, Light1Dir), 0) / Light1Dist;
+	float3 halfway = normalize(Light1Dir + CameraDir);
+	float3 SpecularLight1 = DiffuseLight1 * pow(max(dot(worldNormal.xyz, halfway), 0), SpecularPower);
+
+	//// LIGHT 2
+	float3 Light2Dir = normalize(Light2Pos - vOut.WorldPos.xyz);
+	float3 Light2Dist = length(Light2Pos - vOut.WorldPos.xyz);
+	float3 DiffuseLight2 = Light2Colour * max(dot(worldNormal.xyz, Light2Dir), 0) / Light2Dist;
+	halfway = normalize(Light2Dir + CameraDir);
+	float3 SpecularLight2 = DiffuseLight2 * pow(max(dot(worldNormal.xyz, halfway), 0), SpecularPower);
+
+	//// DIRRECTIONAL
+	float3 DiffuseDir = DirrectionalColour * max(dot(worldNormal.xyz, DirrectionalVec), 0);
+	halfway = normalize(DirrectionalVec + CameraDir);
+	float3 SpecularDir = DiffuseDir * pow(max(dot(worldNormal.xyz, halfway), 0), SpecularPower);
+
+	//// SPOTLIGHT
+	float3 SpotToPixelVec = normalize(SpotLightPos - vOut.WorldPos.xyz);
+	float3 SpotToPixelDist = length(SpotLightPos - vOut.WorldPos.xyz);
+	float SpotDot = dot(SpotToPixelVec, SpotLightVec);
+
+	float3 DiffuseSpot = { 0, 0, 0 };
+	float3 SpecularSpot = { 0, 0, 0 };
+	float angle = acos(SpotDot);
+
+	if (angle < SpotLightAngle)
+	{
+		DiffuseSpot = SpotLightColour * max(dot(worldNormal.xyz, SpotToPixelVec), 0) / SpotToPixelDist;
+		halfway = normalize(SpotToPixelVec + CameraDir);
+		SpecularSpot = DiffuseSpot * pow(max(dot(worldNormal.xyz, halfway), 0), SpecularPower);
+	}
+	else if (angle < SpotLightAngle + 0.0523599f)
+	{
+		DiffuseSpot = SpotLightColour * max(dot(worldNormal.xyz, SpotToPixelVec), 0) / SpotToPixelDist / 5;
+		halfway = normalize(SpotToPixelVec + CameraDir);
+		SpecularSpot = DiffuseSpot * pow(max(dot(worldNormal.xyz, halfway), 0), SpecularPower);
+	}
+
+	// Sum the effect of the two lights - add the ambient at this stage rather than for each light (or we will get twice the ambient level)
+	float3 DiffuseLight = AmbientColour + DiffuseLight1 + DiffuseLight2 + DiffuseDir + DiffuseSpot;
+	float3 SpecularLight = SpecularLight1 + SpecularLight2 + SpecularDir + SpecularSpot;
+
+
+	////////////////////
+	// Sample texture
+
+	// Extract diffuse material colour for this pixel from a texture (using float3, so we get RGB - i.e. ignore any alpha in the texture)
+	float4 DiffuseMaterial = DiffuseMap.Sample(TrilinearWrap, vOut.UV);
+
+	// Assume specular material colour is white (i.e. highlights are a full, untinted reflection of light)
+	float3 SpecularMaterial = DiffuseMaterial.a;
+
+
+	////////////////////
+	// Combine colours 
+
+	// Combine maps and lighting for final pixel colour
+	float4 combinedColour;
+	combinedColour.rgb = DiffuseMaterial * DiffuseLight + SpecularMaterial * SpecularLight;
+	combinedColour.a = 1.0f; // No alpha processing in this shader, so just set it to 1
+
+	return combinedColour;
+}
+
 
 //--------------------------------------------------------------------------------------
 // States
@@ -550,4 +663,20 @@ technique10 AdditiveTexTint
 		SetRasterizerState( CullNone ); 
 		SetDepthStencilState( DepthWritesOff, 0 );
      }
+}
+
+// Vertex lighting with diffuse map
+technique10 VertexLitTex
+{
+	pass P0
+	{
+		SetVertexShader(CompileShader(vs_4_0, VertexLightingTex()));
+		SetGeometryShader(NULL);
+		SetPixelShader(CompileShader(ps_4_0, VertexLitDiffuseMap()));
+
+		// Switch off blending states
+		SetBlendState(NoBlending, float4(0.0f, 0.0f, 0.0f, 0.0f), 0xFFFFFFFF);
+		SetRasterizerState(CullBack);
+		SetDepthStencilState(DepthWritesOn, 0);
+	}
 }

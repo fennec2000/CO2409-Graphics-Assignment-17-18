@@ -29,6 +29,7 @@ float Wiggle;                       // wiggle value
 // The CModel class collects together geometry and world matrix, and provides functions to control the model and render it
 // The CCamera class handles the view and projections matrice, and provides functions to control the camera
 Model*  Cube;
+Model*  Cube2;
 Model*  Teapot;
 Model*  Floor;
 Model*  Sphere;
@@ -37,6 +38,7 @@ Camera* MainCamera;
 // Textures - including normal maps
 ID3D10ShaderResourceView* CubeDiffuseMap   = NULL;
 ID3D10ShaderResourceView* CubeNormalMap    = NULL;
+ID3D10ShaderResourceView* Cube2DiffuseMap  = NULL;
 ID3D10ShaderResourceView* TeapotDiffuseMap = NULL;
 ID3D10ShaderResourceView* TeapotNormalMap  = NULL;
 ID3D10ShaderResourceView* SphereDiffuseMap = NULL;
@@ -103,6 +105,7 @@ bool InitScene()
 	// Load/Create models
 
 	Cube      = new Model;
+	Cube2     = new Model;
 	Teapot    = new Model;
 	Sphere    = new Model;
 	Floor     = new Model;
@@ -120,6 +123,7 @@ bool InitScene()
 	//
 	bool success = true;
 	if (!Cube->     Load( "Cube.x",   ParallaxMappingTechnique,        true ))  success = false;
+	if (!Cube2->    Load( "Cube.x",   VertexLitTexTechnique,           true ))  success = false;
 	if (!Teapot->   Load( "Teapot.x", ParallaxMappingTechnique,        true ))  success = false;
 	if (!Sphere->   Load( "Sphere.x", ParallaxMappingTechniqueSphere,  true ))  success = false;
 	if (!Floor->    Load( "Hills.x",  ParallaxMappingTechnique,        true ))  success = false;
@@ -134,6 +138,7 @@ bool InitScene()
 
 	// Initial model positions
 	Cube->  SetPosition( D3DXVECTOR3( 10, 15, -40) );
+	Cube2-> SetPosition( D3DXVECTOR3( 10, 15, -80) );
 	Teapot->SetPosition( D3DXVECTOR3( 40, 10,  10) );
 	Sphere->SetPosition( D3DXVECTOR3(  0, 20,  10) );
 	Light1->SetPosition( D3DXVECTOR3( 30, 15, -40) );
@@ -162,6 +167,7 @@ bool InitScene()
 	//*******************************************************************************************************//
 	if (FAILED( D3DX10CreateShaderResourceViewFromFile( Device, L"TechDiffuseSpecular.dds",    NULL, NULL, &CubeDiffuseMap,   NULL ) ))  success = false;
 	if (FAILED( D3DX10CreateShaderResourceViewFromFile( Device, L"TechNormalDepth.dds",        NULL, NULL, &CubeNormalMap,    NULL ) ))  success = false;
+	if (FAILED( D3DX10CreateShaderResourceViewFromFile( Device, L"StoneDiffuseSpecular.dds",   NULL, NULL, &Cube2DiffuseMap,  NULL ) ))  success = false;
 	if (FAILED( D3DX10CreateShaderResourceViewFromFile( Device, L"PatternDiffuseSpecular.dds", NULL, NULL, &TeapotDiffuseMap, NULL ) ))  success = false;
 	if (FAILED( D3DX10CreateShaderResourceViewFromFile( Device, L"PatternNormalDepth.dds",     NULL, NULL, &TeapotNormalMap,  NULL ) ))  success = false;
 	if (FAILED( D3DX10CreateShaderResourceViewFromFile( Device, L"BrainDiffuseSpecular.dds",   NULL, NULL, &SphereDiffuseMap, NULL ) ))  success = false;
@@ -189,6 +195,7 @@ void ReleaseScene()
 	delete Light1;     Light1 = NULL;
 	delete Floor;      Floor = NULL;
 	delete Teapot;     Teapot = NULL;
+	delete Cube2;      Cube2 = NULL;
 	delete Cube;       Cube = NULL;
 	delete MainCamera; MainCamera = NULL;
 
@@ -199,6 +206,7 @@ void ReleaseScene()
     if (TeapotDiffuseMap) TeapotDiffuseMap->Release();
 	if (SphereNormalMap)  SphereNormalMap->Release();
 	if (SphereDiffuseMap) SphereDiffuseMap->Release();
+	if (Cube2DiffuseMap)  CubeDiffuseMap->Release();
     if (CubeNormalMap)    CubeNormalMap->Release();
     if (CubeDiffuseMap)   CubeDiffuseMap->Release();
 }
@@ -215,7 +223,7 @@ void UpdateScene( float frameTime )
 	MainCamera->Control(frameTime, Key_W, Key_S, Key_A, Key_D, Key_E, Key_Q, Key_Z, Key_X);
 	
 	// Control cube position and update its world matrix each frame
-	Cube->Control(frameTime, Key_I, Key_K, Key_J, Key_L, Key_U, Key_O, Key_Comma, Key_Period);
+	Cube2->Control(frameTime, Key_I, Key_K, Key_J, Key_L, Key_U, Key_O, Key_Comma, Key_Period);
 
 	// Update the orbiting light - a bit of a cheat with the static variable [ask the tutor if you want to know what this is]
 	static float Rotate = 0.0f;
@@ -301,6 +309,10 @@ void RenderScene()
 	Cube->Render( ParallaxMappingTechnique );                 // Pass rendering technique to the model class
 
 	// Same for the other models in the scene
+	WorldMatrixVar->SetMatrix((float*)Cube2->WorldMatrix());
+	DiffuseMapVar->SetResource(Cube2DiffuseMap);
+	Cube2->Render( VertexLitTexTechnique );
+
 	WorldMatrixVar->SetMatrix( (float*)Teapot->WorldMatrix() );
     DiffuseMapVar->SetResource( TeapotDiffuseMap );
     NormalMapVar->SetResource( TeapotNormalMap );

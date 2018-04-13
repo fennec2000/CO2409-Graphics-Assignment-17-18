@@ -23,6 +23,7 @@ ID3D10Effect* Effect = NULL;
 ID3D10EffectTechnique* ParallaxMappingTechnique   = NULL;
 ID3D10EffectTechnique* ParallaxMappingTechniqueSphere = NULL;
 ID3D10EffectTechnique* AdditiveTintTexTechnique = NULL;
+ID3D10EffectTechnique* VertexLitTexTechnique = NULL;
 
 // Matrices - variables used to send values from C++ to shader (fx file) variables
 // Note, even though we may have many models, the shader only renders one thing at
@@ -99,6 +100,7 @@ bool InitShaders()
 	ParallaxMappingTechnique = Effect->GetTechniqueByName("ParallaxMapping");
 	ParallaxMappingTechniqueSphere = Effect->GetTechniqueByName("ParallaxMappingSphere");
 	AdditiveTintTexTechnique = Effect->GetTechniqueByName("AdditiveTexTint");
+	VertexLitTexTechnique = Effect->GetTechniqueByName("VertexLitTex");
 
 	// Create variables to allow us to access global variables in the shaders from C++
 	// First model and camera matrices

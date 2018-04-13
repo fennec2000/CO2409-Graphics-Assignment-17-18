@@ -22,6 +22,7 @@ extern ID3D10Effect*               Effect;
 extern ID3D10EffectTechnique*      ParallaxMappingTechnique;
 extern ID3D10EffectTechnique*      ParallaxMappingTechniqueSphere;
 extern ID3D10EffectTechnique*      AdditiveTintTexTechnique;
+extern ID3D10EffectTechnique*      VertexLitTexTechnique;
 
 // Matrices - variables used to send values from C++ to shader (fx file) variables
 extern ID3D10EffectMatrixVariable* WorldMatrixVar;
