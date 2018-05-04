@@ -134,6 +134,16 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLi
 	Timer timer;
 	timer.Start();
 
+	// fps limmiter
+	int targetFPS = 144;
+	float frameInterval = 1.0f / targetFPS;
+	float timeSinceLastFrame = 0.0f;
+
+	// update tick
+	int ticksPerSecond = 1000;
+	float tickInterval = 1.0f / ticksPerSecond;
+	float timeSinceLastTick = 0.0f;
+
 	// Main message loop
 	MSG msg = { 0 };
 	while (WM_QUIT != msg.message)
@@ -148,13 +158,23 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLi
 		}
 		else // Otherwise render and update scene
 		{
-			RenderScene();
-
 			// Get the time passed since the last frame (since the last time this line was reached) - used so the rendering and update can be
 			// synchronised to real time and won't be dependent on machine speed
 			float updateTime = timer.GetLapTime();
+			timeSinceLastFrame += updateTime;
+			timeSinceLastTick += updateTime;
 
-			UpdateScene(updateTime);
+			if (timeSinceLastFrame >= frameInterval)
+			{
+				timeSinceLastFrame = 0.0f;
+				RenderScene();
+			}
+
+			if (timeSinceLastTick >= tickInterval)
+			{
+				UpdateScene(timeSinceLastTick);
+				timeSinceLastTick = 0.0f;
+			}
 
 			// Allow user to quit with escape key
 			if (KeyHit(Key_Escape)) 

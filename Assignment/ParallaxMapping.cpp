@@ -49,7 +49,7 @@ float Wiggle;                       // wiggle value
 bool UseMover = false; // invert mover on object
 bool UseWiggle = false; // invert wiggle on object
 const float WIGGLE_POWER_DEFAULT = 0.1f;
-const float WIGGLE_POWER_RATE = 0.001f;
+const float WIGGLE_POWER_RATE = 0.5f;
 float WigglePower = 0.1f;    // power of the wiggle effect
 
 //-------------------------------------
@@ -401,7 +401,7 @@ void UpdateScene( float frameTime )
 	// Wiggle Power
 	if (KeyHeld(Key_8))
 	{
-		WigglePower -= WIGGLE_POWER_RATE;
+		WigglePower -= WIGGLE_POWER_RATE * frameTime;
 	}
 	if (KeyHit(Key_9))
 	{
@@ -409,7 +409,7 @@ void UpdateScene( float frameTime )
 	}
 	if (KeyHeld(Key_0))
 	{
-		WigglePower += WIGGLE_POWER_RATE;
+		WigglePower += WIGGLE_POWER_RATE * frameTime;
 	}
 
 }
